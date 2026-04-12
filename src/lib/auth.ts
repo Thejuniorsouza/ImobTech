@@ -61,5 +61,5 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
   },
-  secret: process.env.NEXTAUTH_SECRET || "imobtech-dev-secret-key",
+  secret: process.env.NEXTAUTH_SECRET,
 };

@@ -48,3 +48,4 @@ prisma/dev.db-journal
 
 # package lock (optional)
 
+dev.db
