@@ -88,6 +88,7 @@ export interface Contract {
 export interface Invoice {
     id: string;
     contract_id: string;
+    competencia_month: string; // "YYYY-MM-01"
     due_date: string;
     amount_cents: number;
     invoice_type: InvoiceType;

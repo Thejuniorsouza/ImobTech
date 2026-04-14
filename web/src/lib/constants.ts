@@ -34,6 +34,7 @@ export enum InvoiceType {
     Iptu = "iptu",
     Condo = "condo",
     Other = "other",
+    Fine = "fine",
 }
 
 export enum InspectionType {
@@ -72,4 +73,5 @@ export const INVOICE_TYPE_LABEL: Record<InvoiceType, string> = {
     [InvoiceType.Iptu]: "IPTU",
     [InvoiceType.Condo]: "Condomínio",
     [InvoiceType.Other]: "Outro",
+    [InvoiceType.Fine]: "Multa rescisória",
 };

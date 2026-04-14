@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
     BarChart,
@@ -31,14 +32,36 @@ import {
 } from "../../lib/constants";
 import { useNavigate } from "react-router-dom";
 
-const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul"];
+const ALL_MONTHS = [
+    "Jan",
+    "Fev",
+    "Mar",
+    "Abr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Set",
+    "Out",
+    "Nov",
+    "Dez",
+];
 const GREEN_DARK = "#1c6147";
 const GREEN_MED = "#339970";
 const GREEN_LIGHT = "#8dd0b2";
 
+type ChartPeriod = 3 | 6 | 12 | "all";
+const PERIOD_LABELS: Record<ChartPeriod, string> = {
+    3: "3m",
+    6: "6m",
+    12: "12m",
+    all: "Tudo",
+};
+
 export function DashboardPage() {
     const { user, profile } = useAuth();
     const navigate = useNavigate();
+    const [chartPeriod, setChartPeriod] = useState<ChartPeriod>(6);
 
     const { data: contracts = [] } = useQuery({
         queryKey: ["owner-contracts", user?.id],
@@ -71,23 +94,70 @@ export function DashboardPage() {
         (i) => i.status === InvoiceStatus.Pending,
     );
 
-    const totalReceivable = pendingInvoices.reduce(
-        (s, i) => s + i.amount_cents,
-        0,
-    );
+    const now = new Date();
+    const currentMonthPending = pendingInvoices.filter((i) => {
+        const d = new Date(i.due_date);
+        return (
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth()
+        );
+    });
+
+    const totalReceivable =
+        overdueInvoices.reduce((s, i) => s + i.amount_cents, 0) +
+        currentMonthPending.reduce((s, i) => s + i.amount_cents, 0);
+
     const totalOverdue = overdueInvoices.reduce(
         (s, i) => s + i.amount_cents,
         0,
     );
+    const totalCurrentMonth = currentMonthPending.reduce(
+        (s, i) => s + i.amount_cents,
+        0,
+    );
 
-    // Build chart data — last 7 months
+    // Revenue received this calendar month — all invoice types (rent, fine, etc.)
+    const totalReceivedThisMonth = invoices
+        .filter((i) => {
+            if (i.status !== InvoiceStatus.Paid || !i.paid_at) return false;
+            const pd = new Date(i.paid_at);
+            return (
+                pd.getFullYear() === now.getFullYear() &&
+                pd.getMonth() === now.getMonth()
+            );
+        })
+        .reduce((s, i) => s + i.amount_cents, 0);
+
+    // Build chart data — dynamic period
     const today = new Date();
-    const chartData = MONTH_LABELS.map((month, idx) => {
+
+    // Determine how many months back to look
+    const chartMonthCount: number = (() => {
+        if (chartPeriod === "all") {
+            if (invoices.length === 0) return 6;
+            const oldest = invoices
+                .filter((i) => i.paid_at)
+                .map((i) => new Date(i.paid_at!))
+                .reduce((a, b) => (a < b ? a : b), new Date());
+            const diff =
+                (today.getFullYear() - oldest.getFullYear()) * 12 +
+                (today.getMonth() - oldest.getMonth()) +
+                1;
+            return Math.max(diff, 1);
+        }
+        return chartPeriod;
+    })();
+
+    const chartData = Array.from({ length: chartMonthCount }, (_, idx) => {
         const d = new Date(
             today.getFullYear(),
-            today.getMonth() - (6 - idx),
+            today.getMonth() - (chartMonthCount - 1 - idx),
             1,
         );
+        const label =
+            chartMonthCount > 12
+                ? `${ALL_MONTHS[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
+                : ALL_MONTHS[d.getMonth()];
         const paid = invoices
             .filter((i) => {
                 if (!i.paid_at) return false;
@@ -98,8 +168,21 @@ export function DashboardPage() {
                 );
             })
             .reduce((s, i) => s + i.amount_cents, 0);
-        return { month, value: paid / 100 };
+        return { month: label, value: paid / 100 };
     });
+
+    // Total received for the selected period — all invoice types
+    const periodStart = new Date(
+        today.getFullYear(),
+        today.getMonth() - (chartMonthCount - 1),
+        1,
+    );
+    const totalReceivedPeriod = invoices
+        .filter((i) => {
+            if (i.status !== InvoiceStatus.Paid || !i.paid_at) return false;
+            return new Date(i.paid_at) >= periodStart;
+        })
+        .reduce((s, i) => s + i.amount_cents, 0);
 
     // Upcoming invoices (within 7 days)
     const sevenDays = new Date();
@@ -156,16 +239,20 @@ export function DashboardPage() {
                 <StatCard
                     label="A Receber"
                     value={formatBRL(totalReceivable)}
-                    sub="faturas pendentes"
+                    sub={`${overdueInvoices.length > 0 ? `${overdueInvoices.length} atrasada${overdueInvoices.length > 1 ? "s" : ""} · ` : ""}mês atual`}
                     icon={<TrendingUp className="w-4 h-4" />}
                 />
                 <StatCard
-                    label="Imóveis Vagos"
-                    value={vacantProperties.length}
+                    label={
+                        chartPeriod === "all"
+                            ? "Receita Total"
+                            : `Receita (${PERIOD_LABELS[chartPeriod]})`
+                    }
+                    value={formatBRL(totalReceivedPeriod)}
                     sub={
-                        vacantProperties.length === 1
-                            ? "disponível"
-                            : "disponíveis"
+                        chartPeriod === "all"
+                            ? "todo o período"
+                            : `últimos ${chartPeriod} meses`
                     }
                     icon={<Building2 className="w-4 h-4" />}
                 />
@@ -177,17 +264,43 @@ export function DashboardPage() {
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Receita Mensal</CardTitle>
-                        <span className="text-xs text-gray-400">
-                            Últimos 7 meses
-                        </span>
+                        <div className="flex items-center gap-1">
+                            {(["3", "6", "12", "all"] as const).map((p) => {
+                                const period =
+                                    p === "all"
+                                        ? "all"
+                                        : (Number(p) as ChartPeriod);
+                                return (
+                                    <button
+                                        key={p}
+                                        onClick={() => setChartPeriod(period)}
+                                        className={`px-2 py-0.5 rounded-lg text-xs font-medium transition-colors ${
+                                            chartPeriod === period
+                                                ? "bg-primary-100 text-primary-700"
+                                                : "text-gray-400 hover:text-gray-600"
+                                        }`}
+                                    >
+                                        {PERIOD_LABELS[period as ChartPeriod]}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </CardHeader>
                     <ResponsiveContainer width="100%" height={180}>
-                        <BarChart data={chartData} barSize={28}>
+                        <BarChart
+                            data={chartData}
+                            barSize={chartMonthCount > 12 ? 16 : 28}
+                        >
                             <XAxis
                                 dataKey="month"
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fontSize: 11, fill: "#9ca3af" }}
+                                interval={
+                                    chartMonthCount > 12
+                                        ? Math.floor(chartMonthCount / 8)
+                                        : 0
+                                }
                             />
                             <YAxis hide />
                             <Tooltip
@@ -220,24 +333,56 @@ export function DashboardPage() {
                     </ResponsiveContainer>
                 </Card>
 
-                {/* Upcoming due dates */}
+                {/* A Receber: overdue + current month */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Vencimentos Próximos</CardTitle>
+                        <CardTitle>A Receber</CardTitle>
                         {overdueInvoices.length > 0 && (
                             <Badge variant="overdue">
                                 <AlertCircle className="w-3 h-3 mr-1" />
-                                {overdueInvoices.length} atrasadas
+                                {overdueInvoices.length} atrasada
+                                {overdueInvoices.length > 1 ? "s" : ""}
                             </Badge>
                         )}
                     </CardHeader>
-                    {upcoming.length === 0 ? (
+
+                    {overdueInvoices.length === 0 &&
+                    currentMonthPending.length === 0 ? (
                         <p className="text-sm text-gray-400 text-center py-6">
-                            Nenhum vencimento nos próximos 7 dias
+                            Nenhuma fatura em atraso ou no mês atual
                         </p>
                     ) : (
                         <ul className="space-y-3">
-                            {upcoming.map((inv) => (
+                            {/* Overdue first */}
+                            {overdueInvoices.slice(0, 3).map((inv) => (
+                                <li
+                                    key={inv.id}
+                                    className="flex items-center justify-between text-sm"
+                                >
+                                    <div>
+                                        <p className="font-medium text-gray-800 text-xs">
+                                            {(inv.contract as any)
+                                                ?.tenant_name ?? "—"}
+                                        </p>
+                                        <p className="text-red-400 text-[11px]">
+                                            Venceu{" "}
+                                            {new Date(
+                                                inv.due_date,
+                                            ).toLocaleDateString("pt-BR")}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-semibold text-gray-900 text-xs">
+                                            {formatBRL(inv.amount_cents)}
+                                        </p>
+                                        <Badge variant="overdue">
+                                            Atrasada
+                                        </Badge>
+                                    </div>
+                                </li>
+                            ))}
+                            {/* This month pending */}
+                            {currentMonthPending.slice(0, 4).map((inv) => (
                                 <li
                                     key={inv.id}
                                     className="flex items-center justify-between text-sm"
@@ -266,18 +411,27 @@ export function DashboardPage() {
                             ))}
                         </ul>
                     )}
-                    {totalOverdue > 0 && (
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                            <button
-                                onClick={() => navigate("/owner/invoices")}
-                                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-xl py-2 transition-colors"
-                            >
-                                Ver faturas atrasadas ({formatBRL(totalOverdue)}
-                                )
-                                <ExternalLink className="w-3 h-3" />
-                            </button>
-                        </div>
-                    )}
+
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                        {totalOverdue > 0 && (
+                            <span className="text-xs text-red-500 font-medium">
+                                Atrasado: {formatBRL(totalOverdue)}
+                            </span>
+                        )}
+                        {totalCurrentMonth > 0 && (
+                            <span className="text-xs text-gray-500 ml-auto">
+                                Mês: {formatBRL(totalCurrentMonth)}
+                            </span>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={() => navigate("/owner/invoices")}
+                        className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-xl py-2 transition-colors"
+                    >
+                        Ver todas as faturas
+                        <ExternalLink className="w-3 h-3" />
+                    </button>
                 </Card>
             </div>
 
@@ -360,7 +514,9 @@ export function DashboardPage() {
                                 <li
                                     key={c.id}
                                     onClick={() =>
-                                        navigate(`/owner/contracts/${c.id}`)
+                                        navigate("/owner/contracts", {
+                                            state: { openContractId: c.id },
+                                        })
                                     }
                                     className="flex items-center gap-2 py-2 px-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors"
                                 >

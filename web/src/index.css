@@ -35,6 +35,20 @@
     }
 }
 
+/* ── react-day-picker — paleta forest green ── */
+.rdp-root {
+    --rdp-accent-color: #1c6147;
+    --rdp-accent-background-color: #dcfce7;
+    --rdp-today-color: #1c6147;
+    --rdp-day_button-border-radius: 8px;
+    --rdp-day-height: 36px;
+    --rdp-day-width: 36px;
+    --rdp-day_button-height: 34px;
+    --rdp-day_button-width: 34px;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 0.8125rem;
+}
+
 /* ── Variable chip: rendered inside the contract template editor ── */
 .var-chip {
     display: inline-flex;

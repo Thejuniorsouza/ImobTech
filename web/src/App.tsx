@@ -12,6 +12,7 @@ import { TemplatesPage } from "./pages/owner/TemplatesPage";
 import { InspectionsPage } from "./pages/owner/InspectionsPage";
 import { DocumentsPage } from "./pages/owner/DocumentsPage";
 import { AdsPage } from "./pages/owner/AdsPage";
+import { SettingsPage } from "./pages/owner/SettingsPage";
 import { TenantDashboardPage } from "./pages/tenant/TenantDashboardPage";
 import { UserRole } from "./lib/constants";
 
@@ -41,7 +42,7 @@ export function App() {
                 <Route path="inspections" element={<InspectionsPage />} />
                 <Route path="documents" element={<DocumentsPage />} />
                 <Route path="ads" element={<AdsPage />} />
-                <Route path="settings" element={<DashboardPage />} />
+                <Route path="settings" element={<SettingsPage />} />
             </Route>
 
             {/* Tenant */}

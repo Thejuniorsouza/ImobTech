@@ -375,6 +375,7 @@ export function TemplatesPage() {
                     setFormError(null);
                 }}
                 title={editingId ? "Editar Modelo" : "Novo Modelo"}
+                className="max-w-4xl mx-4 w-full"
             >
                 <form
                     onSubmit={(e) => {

@@ -1,11 +1,19 @@
-import { Search, Bell, Mail } from "lucide-react";
+import { Search, Bell, Mail, Menu } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
     fullName?: string;
     avatarUrl?: string;
+    settingsPath?: string;
+    onMenuClick?: () => void;
 }
 
-export function Header({ fullName, avatarUrl }: HeaderProps) {
+export function Header({
+    fullName,
+    avatarUrl,
+    settingsPath,
+    onMenuClick,
+}: HeaderProps) {
     const initials = fullName
         ? fullName
               .split(" ")
@@ -14,11 +22,21 @@ export function Header({ fullName, avatarUrl }: HeaderProps) {
               .join("")
               .toUpperCase()
         : "?";
+    const navigate = useNavigate();
 
     return (
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center gap-4 px-6 shrink-0">
-            {/* Search */}
-            <div className="flex-1 max-w-xs relative">
+        <header className="h-16 bg-white border-b border-gray-100 flex items-center gap-3 px-4 lg:px-6 shrink-0">
+            {/* Hamburger — mobile only */}
+            <button
+                onClick={onMenuClick}
+                className="lg:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-gray-500"
+                aria-label="Abrir menu"
+            >
+                <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Search — hidden on small screens */}
+            <div className="hidden sm:flex flex-1 max-w-xs relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                     type="text"
@@ -38,7 +56,11 @@ export function Header({ fullName, avatarUrl }: HeaderProps) {
             </button>
 
             {/* User */}
-            <div className="flex items-center gap-3 ml-1">
+            <div
+                className="flex items-center gap-3 ml-1 cursor-pointer group"
+                onClick={() => settingsPath && navigate(settingsPath)}
+                title="Editar perfil"
+            >
                 {avatarUrl ? (
                     <img
                         src={avatarUrl}
@@ -46,7 +68,7 @@ export function Header({ fullName, avatarUrl }: HeaderProps) {
                         className="w-9 h-9 rounded-full object-cover"
                     />
                 ) : (
-                    <div className="w-9 h-9 rounded-full bg-primary-700 flex items-center justify-center text-white text-xs font-semibold">
+                    <div className="w-9 h-9 rounded-full bg-primary-700 flex items-center justify-center text-white text-xs font-semibold group-hover:bg-primary-800 transition-colors">
                         {initials}
                     </div>
                 )}

@@ -1,4 +1,5 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutDashboard,
     Building2,
@@ -47,20 +48,33 @@ const tenantNav: NavItem[] = [
 interface SidebarProps {
     role: "owner" | "tenant";
     fullName?: string;
+    open?: boolean;
+    onClose?: () => void;
 }
 
-export function Sidebar({ role, fullName }: SidebarProps) {
+export function Sidebar({
+    role,
+    fullName,
+    open = false,
+    onClose,
+}: SidebarProps) {
     const navigate = useNavigate();
+    const location = useLocation();
     const mainNav = role === "owner" ? ownerNav : tenantNav;
     const generalNav = role === "owner" ? ownerGeneral : [];
+
+    // Close on route change (mobile)
+    useEffect(() => {
+        onClose?.();
+    }, [location.pathname]);
 
     async function handleLogout() {
         await authService.signOut();
         navigate("/login");
     }
 
-    return (
-        <aside className="flex flex-col w-56 min-h-screen bg-white border-r border-gray-100 py-6 shrink-0">
+    const sidebarContent = (
+        <>
             {/* Logo */}
             <div className="flex items-center gap-2 px-5 mb-8">
                 <div className="w-8 h-8 rounded-xl bg-primary-700 flex items-center justify-center">
@@ -115,7 +129,32 @@ export function Sidebar({ role, fullName }: SidebarProps) {
                     <span>Sair</span>
                 </button>
             </div>
-        </aside>
+        </>
+    );
+
+    return (
+        <>
+            {/* Mobile backdrop */}
+            <div
+                className={cn(
+                    "fixed inset-0 bg-black/40 z-40 lg:hidden transition-opacity duration-300",
+                    open
+                        ? "opacity-100 pointer-events-auto"
+                        : "opacity-0 pointer-events-none",
+                )}
+                onClick={onClose}
+            />
+
+            {/* Sidebar — mobile drawer + desktop fixed */}
+            <aside
+                className={cn(
+                    "fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-white border-r border-gray-100 py-6 transition-transform duration-300 lg:static lg:z-auto lg:w-56 lg:translate-x-0 lg:shrink-0",
+                    open ? "translate-x-0" : "-translate-x-full",
+                )}
+            >
+                {sidebarContent}
+            </aside>
+        </>
     );
 }
 

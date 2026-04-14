@@ -46,4 +46,29 @@ export const authService = {
             .single();
         return data;
     },
+
+    async updateProfile(
+        userId: string,
+        data: Partial<
+            Pick<
+                Profile,
+                | "full_name"
+                | "phone"
+                | "rg"
+                | "address"
+                | "nationality"
+                | "marital_status"
+                | "profession"
+            >
+        >,
+    ): Promise<Profile> {
+        const { data: result, error } = await supabase
+            .from("profiles")
+            .update(data)
+            .eq("id", userId)
+            .select()
+            .single();
+        if (error) throw error;
+        return result;
+    },
 };
