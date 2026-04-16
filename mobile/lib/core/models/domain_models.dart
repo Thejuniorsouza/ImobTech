@@ -7,21 +7,15 @@ enum PropertyType { house, apartment, commercial }
 
 enum PropertyStatus { vacant, rented }
 
-enum ContractStatus { active, terminated }
+enum ContractStatus { active, terminated, expired }
 
-enum InvoiceStatus { pending, paid, overdue }
+enum InvoiceStatus { pending, paid, overdue, cancelled }
 
-enum InvoiceType { rent, deposit, iptu, condo }
+enum InvoiceType { rent, deposit, iptu, condo, fine, other }
 
 enum InspectionType { entry, exit }
 
-enum DocumentType {
-  comprovante,
-  ordemServico,
-  comunicado,
-  laudo,
-  outro,
-}
+enum DocumentType { comprovante, ordemServico, comunicado, laudo, outro }
 
 class Profile {
   final String id;
@@ -49,17 +43,17 @@ class Profile {
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
-        id: json['id'] as String,
-        role: UserRole.values.firstWhere((e) => e.name == json['role']),
-        fullName: json['full_name'] as String,
-        cpf: json['cpf'] as String,
-        email: json['email'] as String,
-        phone: json['phone'] as String?,
-        rg: json['rg'] as String?,
-        address: json['address'] as String?,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
-      );
+    id: json['id'] as String,
+    role: UserRole.values.firstWhere((e) => e.name == json['role']),
+    fullName: json['full_name'] as String,
+    cpf: json['cpf'] as String,
+    email: json['email'] as String,
+    phone: json['phone'] as String?,
+    rg: json['rg'] as String?,
+    address: json['address'] as String?,
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+  );
 }
 
 class Property {
@@ -77,8 +71,10 @@ class Property {
   final int bedrooms;
   final int bathrooms;
   final int parkingSpaces;
+
   /// IPTU mensal em centavos
   final int iptuMonthlyCents;
+
   /// Condomínio mensal em centavos
   final int condoMonthlyCents;
   final PropertyStatus status;
@@ -110,31 +106,29 @@ class Property {
   });
 
   factory Property.fromJson(Map<String, dynamic> json) => Property(
-        id: json['id'] as String,
-        ownerId: json['owner_id'] as String,
-        addressStreet: json['address_street'] as String,
-        addressNumber: json['address_number'] as String,
-        addressComplement: json['address_complement'] as String?,
-        addressNeighborhood: json['address_neighborhood'] as String,
-        addressCity: json['address_city'] as String,
-        addressState: json['address_state'] as String,
-        addressZip: json['address_zip'] as String,
-        propertyType: PropertyType.values.firstWhere(
-          (e) => e.name == json['property_type'],
-        ),
-        areaSqm: (json['area_sqm'] as num?)?.toDouble(),
-        bedrooms: json['bedrooms'] as int,
-        bathrooms: json['bathrooms'] as int,
-        parkingSpaces: json['parking_spaces'] as int,
-        iptuMonthlyCents: json['iptu_monthly_cents'] as int,
-        condoMonthlyCents: json['condo_monthly_cents'] as int,
-        status: PropertyStatus.values.firstWhere(
-          (e) => e.name == json['status'],
-        ),
-        description: json['description'] as String?,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
-      );
+    id: json['id'] as String,
+    ownerId: json['owner_id'] as String,
+    addressStreet: json['address_street'] as String,
+    addressNumber: json['address_number'] as String,
+    addressComplement: json['address_complement'] as String?,
+    addressNeighborhood: json['address_neighborhood'] as String,
+    addressCity: json['address_city'] as String,
+    addressState: json['address_state'] as String,
+    addressZip: json['address_zip'] as String,
+    propertyType: PropertyType.values.firstWhere(
+      (e) => e.name == json['property_type'],
+    ),
+    areaSqm: (json['area_sqm'] as num?)?.toDouble(),
+    bedrooms: json['bedrooms'] as int,
+    bathrooms: json['bathrooms'] as int,
+    parkingSpaces: json['parking_spaces'] as int,
+    iptuMonthlyCents: json['iptu_monthly_cents'] as int,
+    condoMonthlyCents: json['condo_monthly_cents'] as int,
+    status: PropertyStatus.values.firstWhere((e) => e.name == json['status']),
+    description: json['description'] as String?,
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+  );
 
   String get fullAddress =>
       '$addressStreet, $addressNumber${addressComplement != null ? ' $addressComplement' : ''} — $addressCity/$addressState';
@@ -146,8 +140,10 @@ class Contract {
   final String ownerId;
   final String tenantId;
   final String? templateId;
+
   /// Aluguel mensal em centavos
   final int rentAmountCents;
+
   /// Caução em centavos
   final int depositAmountCents;
   final int dueDay;
@@ -184,27 +180,25 @@ class Contract {
   });
 
   factory Contract.fromJson(Map<String, dynamic> json) => Contract(
-        id: json['id'] as String,
-        propertyId: json['property_id'] as String,
-        ownerId: json['owner_id'] as String,
-        tenantId: json['tenant_id'] as String,
-        templateId: json['template_id'] as String?,
-        rentAmountCents: json['rent_amount_cents'] as int,
-        depositAmountCents: json['deposit_amount_cents'] as int,
-        dueDay: json['due_day'] as int,
-        startDate: json['start_date'] as String,
-        endDate: json['end_date'] as String,
-        status: ContractStatus.values.firstWhere(
-          (e) => e.name == json['status'],
-        ),
-        pdfStoragePath: json['pdf_storage_path'] as String?,
-        tenantName: json['tenant_name'] as String,
-        tenantCpf: json['tenant_cpf'] as String,
-        tenantRg: json['tenant_rg'] as String?,
-        tenantAddress: json['tenant_address'] as String?,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
-      );
+    id: json['id'] as String,
+    propertyId: json['property_id'] as String,
+    ownerId: json['owner_id'] as String,
+    tenantId: json['tenant_id'] as String,
+    templateId: json['template_id'] as String?,
+    rentAmountCents: json['rent_amount_cents'] as int,
+    depositAmountCents: json['deposit_amount_cents'] as int,
+    dueDay: json['due_day'] as int,
+    startDate: json['start_date'] as String,
+    endDate: json['end_date'] as String,
+    status: ContractStatus.values.firstWhere((e) => e.name == json['status']),
+    pdfStoragePath: json['pdf_storage_path'] as String?,
+    tenantName: json['tenant_name'] as String,
+    tenantCpf: json['tenant_cpf'] as String,
+    tenantRg: json['tenant_rg'] as String?,
+    tenantAddress: json['tenant_address'] as String?,
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+  );
 }
 
 class Invoice {
@@ -212,6 +206,7 @@ class Invoice {
   final String contractId;
   final String competenciaMonth;
   final InvoiceType invoiceType;
+
   /// Valor em centavos
   final int amountCents;
   final String dueDate;
@@ -234,23 +229,21 @@ class Invoice {
   });
 
   factory Invoice.fromJson(Map<String, dynamic> json) => Invoice(
-        id: json['id'] as String,
-        contractId: json['contract_id'] as String,
-        competenciaMonth: json['competencia_month'] as String,
-        invoiceType: InvoiceType.values.firstWhere(
-          (e) => e.name == json['invoice_type'],
-        ),
-        amountCents: json['amount_cents'] as int,
-        dueDate: json['due_date'] as String,
-        status: InvoiceStatus.values.firstWhere(
-          (e) => e.name == json['status'],
-        ),
-        paidAt: json['paid_at'] != null
-            ? DateTime.parse(json['paid_at'] as String)
-            : null,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
-      );
+    id: json['id'] as String,
+    contractId: json['contract_id'] as String,
+    competenciaMonth: json['competencia_month'] as String,
+    invoiceType: InvoiceType.values.firstWhere(
+      (e) => e.name == json['invoice_type'],
+    ),
+    amountCents: json['amount_cents'] as int,
+    dueDate: json['due_date'] as String,
+    status: InvoiceStatus.values.firstWhere((e) => e.name == json['status']),
+    paidAt: json['paid_at'] != null
+        ? DateTime.parse(json['paid_at'] as String)
+        : null,
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+  );
 }
 
 class Inspection {
@@ -269,12 +262,12 @@ class Inspection {
   });
 
   factory Inspection.fromJson(Map<String, dynamic> json) => Inspection(
-        id: json['id'] as String,
-        contractId: json['contract_id'] as String,
-        type: InspectionType.values.firstWhere((e) => e.name == json['type']),
-        description: json['description'] as String?,
-        createdAt: DateTime.parse(json['created_at'] as String),
-      );
+    id: json['id'] as String,
+    contractId: json['contract_id'] as String,
+    type: InspectionType.values.firstWhere((e) => e.name == json['type']),
+    description: json['description'] as String?,
+    createdAt: DateTime.parse(json['created_at'] as String),
+  );
 }
 
 class InspectionPhoto {
@@ -294,7 +287,8 @@ class InspectionPhoto {
     required this.createdAt,
   });
 
-  factory InspectionPhoto.fromJson(Map<String, dynamic> json) => InspectionPhoto(
+  factory InspectionPhoto.fromJson(Map<String, dynamic> json) =>
+      InspectionPhoto(
         id: json['id'] as String,
         inspectionId: json['inspection_id'] as String,
         storagePath: json['storage_path'] as String,
@@ -319,7 +313,8 @@ class ContractTemplate {
     required this.createdAt,
   });
 
-  factory ContractTemplate.fromJson(Map<String, dynamic> json) => ContractTemplate(
+  factory ContractTemplate.fromJson(Map<String, dynamic> json) =>
+      ContractTemplate(
         id: json['id'] as String,
         ownerId: json['owner_id'] as String?,
         title: json['title'] as String,
@@ -346,11 +341,11 @@ class SharedDocument {
   });
 
   factory SharedDocument.fromJson(Map<String, dynamic> json) => SharedDocument(
-        id: json['id'] as String,
-        contractId: json['contract_id'] as String,
-        storagePath: json['storage_path'] as String,
-        fileName: json['file_name'] as String,
-        documentType: json['document_type'] as String,
-        createdAt: DateTime.parse(json['created_at'] as String),
-      );
+    id: json['id'] as String,
+    contractId: json['contract_id'] as String,
+    storagePath: json['storage_path'] as String,
+    fileName: json['file_name'] as String,
+    documentType: json['document_type'] as String,
+    createdAt: DateTime.parse(json['created_at'] as String),
+  );
 }

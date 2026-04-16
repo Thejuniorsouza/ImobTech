@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/supabase_client.dart';
 import '../../../core/models/domain_models.dart';
-import '../../../core/models/constants.dart';
+
 import '../../../core/utils/currency.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────
 
-final tenantContractsProvider = FutureProvider.autoDispose<List<Contract>>((ref) async {
+final tenantContractsProvider = FutureProvider.autoDispose<List<Contract>>((
+  ref,
+) async {
   final user = supabase.auth.currentUser;
   if (user == null) return [];
 
@@ -26,32 +28,32 @@ final tenantContractsProvider = FutureProvider.autoDispose<List<Contract>>((ref)
 
 final tenantInvoicesCurrentMonthProvider =
     FutureProvider.autoDispose<List<Invoice>>((ref) async {
-  final user = supabase.auth.currentUser;
-  if (user == null) return [];
+      final user = supabase.auth.currentUser;
+      if (user == null) return [];
 
-  // Get contract ids for this tenant.
-  final contractsRaw = await supabase
-      .from('contracts')
-      .select('id')
-      .eq('tenant_id', user.id);
+      // Get contract ids for this tenant.
+      final contractsRaw = await supabase
+          .from('contracts')
+          .select('id')
+          .eq('tenant_id', user.id);
 
-  final ids = (contractsRaw as List).map((e) => e['id'] as String).toList();
-  if (ids.isEmpty) return [];
+      final ids = (contractsRaw as List).map((e) => e['id'] as String).toList();
+      if (ids.isEmpty) return [];
 
-  final now = DateTime.now();
-  final monthPrefix = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final now = DateTime.now();
+      final monthPrefix = '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
-  final response = await supabase
-      .from('invoices')
-      .select()
-      .inFilter('contract_id', ids)
-      .like('competencia_month', '$monthPrefix%')
-      .order('due_date');
+      final response = await supabase
+          .from('invoices')
+          .select()
+          .inFilter('contract_id', ids)
+          .like('competencia_month', '$monthPrefix%')
+          .order('due_date');
 
-  return (response as List)
-      .map((e) => Invoice.fromJson(e as Map<String, dynamic>))
-      .toList();
-});
+      return (response as List)
+          .map((e) => Invoice.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
 
 // ── Screen ────────────────────────────────────────────────────────────────
 
@@ -64,7 +66,19 @@ class TenantDashboardScreen extends ConsumerWidget {
     final invoicesAsync = ref.watch(tenantInvoicesCurrentMonthProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Minha Área')),
+      appBar: AppBar(
+        title: const Text('Minha Área'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Sair',
+            onPressed: () async {
+              await supabase.auth.signOut();
+              if (context.mounted) context.go('/login');
+            },
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -72,9 +86,11 @@ class TenantDashboardScreen extends ConsumerWidget {
           invoicesAsync.maybeWhen(
             data: (invoices) {
               final pendingTotal = invoices
-                  .where((inv) =>
-                      inv.status == InvoiceStatus.pending ||
-                      inv.status == InvoiceStatus.overdue)
+                  .where(
+                    (inv) =>
+                        inv.status == InvoiceStatus.pending ||
+                        inv.status == InvoiceStatus.overdue,
+                  )
                   .fold<int>(0, (sum, inv) => sum + inv.amountCents);
 
               if (pendingTotal == 0) return const SizedBox.shrink();
@@ -89,8 +105,10 @@ class TenantDashboardScreen extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: Colors.orange.shade700),
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange.shade700,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -109,7 +127,10 @@ class TenantDashboardScreen extends ConsumerWidget {
           ),
 
           // ── Active contracts ──────────────────────
-          Text('Meus Contratos', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Meus Contratos',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           contractsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -162,7 +183,10 @@ class _TenantContractCard extends StatelessWidget {
             children: [
               Text(
                 'Aluguel: ${centsToDisplay(contract.rentAmountCents)}/mês',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -178,7 +202,8 @@ class _TenantContractCard extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => context.go('/tenant/contracts/${contract.id}'),
+                  onPressed: () =>
+                      context.go('/tenant/contracts/${contract.id}'),
                   child: const Text('Ver detalhes →'),
                 ),
               ),

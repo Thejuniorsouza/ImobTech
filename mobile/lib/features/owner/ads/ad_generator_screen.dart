@@ -8,17 +8,17 @@ import '../../../core/supabase_client.dart';
 
 final adGeneratorProvider = FutureProvider.autoDispose
     .family<Map<String, String>, String>((ref, propertyId) async {
-  final response = await supabase.functions.invoke(
-    'generate-ad',
-    body: {'property_id': propertyId},
-  );
-  final data = response.data as Map<String, dynamic>;
-  return {
-    'olx': data['olx'] as String? ?? '',
-    'zap': data['zap'] as String? ?? '',
-    'vivareal': data['vivareal'] as String? ?? '',
-  };
-});
+      final response = await supabase.functions.invoke(
+        'generate-ad',
+        body: {'property_id': propertyId},
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'olx': data['olx'] as String? ?? '',
+        'zap': data['zap'] as String? ?? '',
+        'vivareal': data['vivareal'] as String? ?? '',
+      };
+    });
 
 // ── Screen ────────────────────────────────────────────────────────────────
 
@@ -64,7 +64,8 @@ class _AdGeneratorScreenState extends ConsumerState<AdGeneratorScreen>
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Gerar novamente',
-            onPressed: () => ref.invalidate(adGeneratorProvider(widget.propertyId)),
+            onPressed: () =>
+                ref.invalidate(adGeneratorProvider(widget.propertyId)),
           ),
         ],
       ),
@@ -75,7 +76,10 @@ class _AdGeneratorScreenState extends ConsumerState<AdGeneratorScreen>
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 12),
-              Text('Gerando anúncios com IA…', style: TextStyle(color: Colors.grey)),
+              Text(
+                'Gerando anúncios com IA…',
+                style: TextStyle(color: Colors.grey),
+              ),
             ],
           ),
         ),
@@ -99,10 +103,7 @@ class _AdGeneratorScreenState extends ConsumerState<AdGeneratorScreen>
           controller: _tabs,
           children: List.generate(
             _platforms.length,
-            (i) => _AdTab(
-              platform: _platforms[i],
-              text: ads[_keys[i]] ?? '',
-            ),
+            (i) => _AdTab(platform: _platforms[i], text: ads[_keys[i]] ?? ''),
           ),
         ),
       ),
@@ -148,7 +149,7 @@ class _AdTabState extends State<_AdTab> {
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: _ctrl.text));
     setState(() => _copied = true);
-    await Future.delayed(const Duration(seconds: 2));
+    await Future<void>.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => _copied = false);
   }
 
@@ -159,10 +160,7 @@ class _AdTabState extends State<_AdTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            widget.platform,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
+          Text(widget.platform, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           Expanded(
             child: TextField(

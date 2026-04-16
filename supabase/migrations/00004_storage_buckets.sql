@@ -9,7 +9,7 @@
 -- ============================================================
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES
-  ('property-photos',    'property-photos',    false, 10485760, ARRAY['image/jpeg','image/png','image/webp']),
+  ('property-photos',    'property-photos',    true,  10485760, ARRAY['image/jpeg','image/png','image/webp']),
   ('inspection-photos',  'inspection-photos',  false, 10485760, ARRAY['image/jpeg','image/png','image/webp']),
   ('shared-documents',   'shared-documents',   false, 52428800, NULL),
   ('contract-pdfs',      'contract-pdfs',      false, 10485760, ARRAY['application/pdf'])

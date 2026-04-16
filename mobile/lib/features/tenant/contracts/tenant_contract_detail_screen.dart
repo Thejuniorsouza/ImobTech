@@ -8,24 +8,27 @@ import '../../../core/utils/currency.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────
 
-final tenantContractDetailProvider =
-    FutureProvider.autoDispose.family<Contract, String>((ref, id) async {
-  final response =
-      await supabase.from('contracts').select().eq('id', id).single();
-  return Contract.fromJson(response as Map<String, dynamic>);
-});
+final tenantContractDetailProvider = FutureProvider.autoDispose
+    .family<Contract, String>((ref, id) async {
+      final response = await supabase
+          .from('contracts')
+          .select()
+          .eq('id', id)
+          .single();
+      return Contract.fromJson(response);
+    });
 
-final tenantContractInvoicesProvider =
-    FutureProvider.autoDispose.family<List<Invoice>, String>((ref, contractId) async {
-  final response = await supabase
-      .from('invoices')
-      .select()
-      .eq('contract_id', contractId)
-      .order('due_date', ascending: false);
-  return (response as List)
-      .map((e) => Invoice.fromJson(e as Map<String, dynamic>))
-      .toList();
-});
+final tenantContractInvoicesProvider = FutureProvider.autoDispose
+    .family<List<Invoice>, String>((ref, contractId) async {
+      final response = await supabase
+          .from('invoices')
+          .select()
+          .eq('contract_id', contractId)
+          .order('due_date', ascending: false);
+      return (response as List)
+          .map((e) => Invoice.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
 
 // ── Screen ────────────────────────────────────────────────────────────────
 
@@ -53,7 +56,10 @@ class TenantContractDetailScreen extends ConsumerWidget {
                 title: 'Dados do Contrato',
                 rows: [
                   _InfoRow('Aluguel', centsToDisplay(contract.rentAmountCents)),
-                  _InfoRow('Caução', centsToDisplay(contract.depositAmountCents)),
+                  _InfoRow(
+                    'Caução',
+                    centsToDisplay(contract.depositAmountCents),
+                  ),
                   _InfoRow('Dia de vencimento', 'Dia ${contract.dueDay}'),
                   _InfoRow(
                     'Período',
@@ -83,8 +89,10 @@ class TenantContractDetailScreen extends ConsumerWidget {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Text('Erro: $e'),
                 data: (invoices) => invoices.isEmpty
-                    ? const Text('Nenhuma fatura.',
-                        style: TextStyle(color: Colors.grey))
+                    ? const Text(
+                        'Nenhuma fatura.',
+                        style: TextStyle(color: Colors.grey),
+                      )
                     : Column(
                         children: invoices
                             .map((inv) => _InvoiceTile(invoice: inv))
@@ -104,23 +112,24 @@ class TenantContractDetailScreen extends ConsumerWidget {
           .from('contract-pdfs')
           .createSignedUrl(path, 300);
       if (!context.mounted) return;
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Link do PDF do Contrato'),
           content: SelectableText(url, style: const TextStyle(fontSize: 12)),
           actions: [
             TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Fechar')),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Fechar'),
+            ),
           ],
         ),
       );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 
@@ -161,14 +170,20 @@ class _InfoCard extends StatelessWidget {
                   children: [
                     Expanded(
                       flex: 2,
-                      child: Text(r.label,
-                          style: const TextStyle(
-                              color: Colors.grey, fontSize: 13)),
+                      child: Text(
+                        r.label,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                     Expanded(
                       flex: 3,
-                      child: Text(r.value,
-                          style: const TextStyle(fontSize: 13)),
+                      child: Text(
+                        r.value,
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
                   ],
                 ),
@@ -192,8 +207,10 @@ class _InvoiceTile extends StatelessWidget {
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: Text(_fmtDate(invoice.dueDate),
-          style: const TextStyle(fontSize: 13)),
+      title: Text(
+        _fmtDate(invoice.dueDate),
+        style: const TextStyle(fontSize: 13),
+      ),
       subtitle: Text(centsToDisplay(invoice.amountCents)),
       trailing: Chip(
         label: Text(
@@ -203,8 +220,8 @@ class _InvoiceTile extends StatelessWidget {
         backgroundColor: isPaid
             ? Colors.green.shade100
             : isOverdue
-                ? Colors.red.shade100
-                : Colors.orange.shade100,
+            ? Colors.red.shade100
+            : Colors.orange.shade100,
         side: BorderSide.none,
         padding: const EdgeInsets.symmetric(horizontal: 4),
       ),

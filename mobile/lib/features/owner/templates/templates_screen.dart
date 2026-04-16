@@ -6,7 +6,9 @@ import '../../../core/models/domain_models.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────
 
-final templatesProvider = FutureProvider.autoDispose<List<ContractTemplate>>((ref) async {
+final templatesProvider = FutureProvider.autoDispose<List<ContractTemplate>>((
+  ref,
+) async {
   final user = supabase.auth.currentUser;
   if (user == null) return [];
 
@@ -32,6 +34,7 @@ class TemplatesScreen extends ConsumerStatefulWidget {
 }
 
 class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
+  // ignore: unused_field
   String? _expandedId;
 
   @override
@@ -55,8 +58,10 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
         data: (templates) {
           if (templates.isEmpty) {
             return const Center(
-              child: Text('Nenhum modelo disponível.',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Nenhum modelo disponível.',
+                style: TextStyle(color: Colors.grey),
+              ),
             );
           }
 
@@ -83,20 +88,27 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                               ? Colors.amber.shade700
                               : Theme.of(context).colorScheme.primary,
                         ),
-                        title: Text(t.title,
-                            style: const TextStyle(fontSize: 14)),
+                        title: Text(
+                          t.title,
+                          style: const TextStyle(fontSize: 14),
+                        ),
                         subtitle: Text(
                           t.isSystem ? 'Modelo do sistema' : 'Meu modelo',
-                          style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (isOwn)
                               IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    color: Colors.red, size: 20),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
                                 tooltip: 'Excluir',
                                 onPressed: () => _confirmDelete(context, t),
                               ),
@@ -149,12 +161,13 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar')),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty ||
-                  bodyCtrl.text.trim().isEmpty) return;
+              if (titleCtrl.text.trim().isEmpty || bodyCtrl.text.trim().isEmpty)
+                return;
               try {
                 await supabase.from('contract_templates').insert({
                   'title': titleCtrl.text.trim(),
@@ -165,8 +178,9 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                 if (context.mounted) Navigator.of(context).pop(true);
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text('Erro: $e')));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Erro: $e')));
                 }
               }
             },
@@ -187,8 +201,9 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
         content: Text('Excluir "${t.title}"?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar')),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.of(context).pop(true),
@@ -200,15 +215,13 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
 
     if (confirmed != true) return;
     try {
-      await supabase
-          .from('contract_templates')
-          .delete()
-          .eq('id', t.id);
+      await supabase.from('contract_templates').delete().eq('id', t.id);
       ref.invalidate(templatesProvider);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 }

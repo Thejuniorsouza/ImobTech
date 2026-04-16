@@ -83,6 +83,21 @@ enabled = true
 policy = "per_worker"
 inspector_port = 8083
 
+[functions.terminate-contract]
+verify_jwt = false
+
+[functions.dashboard-metrics]
+verify_jwt = false
+
+[functions.generate-ad]
+verify_jwt = false
+
+[functions.generate-contract-pdf]
+verify_jwt = false
+
+[functions.delete-user-data]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327

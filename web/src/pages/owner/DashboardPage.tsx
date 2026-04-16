@@ -158,6 +158,8 @@ export function DashboardPage() {
             chartMonthCount > 12
                 ? `${ALL_MONTHS[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
                 : ALL_MONTHS[d.getMonth()];
+        const yearLabel = `${ALL_MONTHS[d.getMonth()]}/${d.getFullYear()}`;
+        const isoMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         const paid = invoices
             .filter((i) => {
                 if (!i.paid_at) return false;
@@ -168,7 +170,7 @@ export function DashboardPage() {
                 );
             })
             .reduce((s, i) => s + i.amount_cents, 0);
-        return { month: label, value: paid / 100 };
+        return { month: label, yearLabel, isoMonth, value: paid / 100 };
     });
 
     // Total received for the selected period — all invoice types
@@ -290,6 +292,7 @@ export function DashboardPage() {
                         <BarChart
                             data={chartData}
                             barSize={chartMonthCount > 12 ? 16 : 28}
+                            style={{ cursor: "pointer" }}
                         >
                             <XAxis
                                 dataKey="month"
@@ -308,6 +311,12 @@ export function DashboardPage() {
                                     `R$ ${v.toFixed(2)}`,
                                     "Recebido",
                                 ]}
+                                labelFormatter={(label, payload) => {
+                                    const item = payload?.[0]?.payload as
+                                        | { yearLabel?: string }
+                                        | undefined;
+                                    return item?.yearLabel ?? label;
+                                }}
                                 contentStyle={{
                                     borderRadius: 12,
                                     border: "none",
@@ -315,7 +324,17 @@ export function DashboardPage() {
                                     fontSize: 12,
                                 }}
                             />
-                            <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                            <Bar
+                                dataKey="value"
+                                radius={[8, 8, 0, 0]}
+                                onClick={(data: { isoMonth?: string }) => {
+                                    if (data?.isoMonth) {
+                                        navigate(
+                                            `/owner/invoices?paidMonth=${data.isoMonth}`,
+                                        );
+                                    }
+                                }}
+                            >
                                 {chartData.map((entry, i) => (
                                     <Cell
                                         key={i}

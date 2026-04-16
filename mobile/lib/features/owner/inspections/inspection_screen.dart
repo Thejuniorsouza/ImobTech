@@ -1,36 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase_client.dart';
 import '../../../core/models/domain_models.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────
 
-final inspectionsProvider =
-    FutureProvider.autoDispose.family<List<Inspection>, String>((ref, contractId) async {
-  final response = await supabase
-      .from('inspections')
-      .select()
-      .eq('contract_id', contractId)
-      .order('created_at', ascending: false);
-  return (response as List)
-      .map((e) => Inspection.fromJson(e as Map<String, dynamic>))
-      .toList();
-});
+final inspectionsProvider = FutureProvider.autoDispose
+    .family<List<Inspection>, String>((ref, contractId) async {
+      final response = await supabase
+          .from('inspections')
+          .select()
+          .eq('contract_id', contractId)
+          .order('created_at', ascending: false);
+      return (response as List)
+          .map((e) => Inspection.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
 
-final inspectionPhotosProvider =
-    FutureProvider.autoDispose.family<List<InspectionPhoto>, String>(
-        (ref, inspectionId) async {
-  final response = await supabase
-      .from('inspection_photos')
-      .select()
-      .eq('inspection_id', inspectionId)
-      .order('room_name');
-  return (response as List)
-      .map((e) => InspectionPhoto.fromJson(e as Map<String, dynamic>))
-      .toList();
-});
+final inspectionPhotosProvider = FutureProvider.autoDispose
+    .family<List<InspectionPhoto>, String>((ref, inspectionId) async {
+      final response = await supabase
+          .from('inspection_photos')
+          .select()
+          .eq('inspection_id', inspectionId)
+          .order('room_name');
+      return (response as List)
+          .map((e) => InspectionPhoto.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
 
 // ── Screen ────────────────────────────────────────────────────────────────
 
@@ -60,15 +60,17 @@ class _InspectionScreenState extends ConsumerState<InspectionScreen>
 
   @override
   Widget build(BuildContext context) {
-    final inspectionsAsync =
-        ref.watch(inspectionsProvider(widget.contractId));
+    final inspectionsAsync = ref.watch(inspectionsProvider(widget.contractId));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Vistorias'),
         bottom: TabBar(
           controller: _tabs,
-          tabs: const [Tab(text: 'Entrada'), Tab(text: 'Saída')],
+          tabs: const [
+            Tab(text: 'Entrada'),
+            Tab(text: 'Saída'),
+          ],
         ),
       ),
       body: inspectionsAsync.when(
@@ -89,13 +91,15 @@ class _InspectionScreenState extends ConsumerState<InspectionScreen>
                 contractId: widget.contractId,
                 type: InspectionType.entry,
                 inspections: entry,
-                onCreated: () => ref.invalidate(inspectionsProvider(widget.contractId)),
+                onCreated: () =>
+                    ref.invalidate(inspectionsProvider(widget.contractId)),
               ),
               _InspectionTab(
                 contractId: widget.contractId,
                 type: InspectionType.exit,
                 inspections: exit,
-                onCreated: () => ref.invalidate(inspectionsProvider(widget.contractId)),
+                onCreated: () =>
+                    ref.invalidate(inspectionsProvider(widget.contractId)),
               ),
             ],
           );
@@ -182,7 +186,8 @@ class _InspectionTabState extends ConsumerState<_InspectionTab> {
                       ? const SizedBox(
                           height: 18,
                           width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Registrar vistoria'),
                 ),
               ],
@@ -192,21 +197,21 @@ class _InspectionTabState extends ConsumerState<_InspectionTab> {
         const SizedBox(height: 16),
         if (widget.inspections.isEmpty)
           const Center(
-            child: Text('Nenhuma vistoria registrada.',
-                style: TextStyle(color: Colors.grey)),
+            child: Text(
+              'Nenhuma vistoria registrada.',
+              style: TextStyle(color: Colors.grey),
+            ),
           ),
-        ...widget.inspections.map((i) => _InspectionCard(
-              inspection: i,
-              onPhotoAdded: widget.onCreated,
-            )),
+        ...widget.inspections.map(
+          (i) => _InspectionCard(inspection: i, onPhotoAdded: widget.onCreated),
+        ),
       ],
     );
   }
 }
 
 class _InspectionCard extends ConsumerWidget {
-  const _InspectionCard(
-      {required this.inspection, required this.onPhotoAdded});
+  const _InspectionCard({required this.inspection, required this.onPhotoAdded});
   final Inspection inspection;
   final VoidCallback onPhotoAdded;
 
@@ -221,8 +226,10 @@ class _InspectionCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(inspection.description ?? '',
-                style: const TextStyle(fontWeight: FontWeight.w500)),
+            Text(
+              inspection.description ?? '',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
             const SizedBox(height: 8),
             // Upload button
             OutlinedButton.icon(
@@ -235,8 +242,10 @@ class _InspectionCard extends ConsumerWidget {
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text('Erro: $e'),
               data: (photos) => photos.isEmpty
-                  ? const Text('Sem fotos ainda.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12))
+                  ? const Text(
+                      'Sem fotos ainda.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    )
                   : _PhotoGrid(photos: photos),
             ),
           ],
@@ -255,7 +264,7 @@ class _InspectionCard extends ConsumerWidget {
       final path = 'inspections/${inspection.id}/${xFile.name}';
       await supabase.storage
           .from('inspection-photos')
-          .uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
+          .uploadBinary(path, bytes, fileOptions: FileOptions(upsert: true));
 
       await supabase.from('inspection_photos').insert({
         'inspection_id': inspection.id,
@@ -268,8 +277,9 @@ class _InspectionCard extends ConsumerWidget {
       onPhotoAdded();
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro ao enviar foto: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao enviar foto: $e')));
     }
   }
 }
@@ -284,7 +294,10 @@ class _PhotoGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, crossAxisSpacing: 6, mainAxisSpacing: 6),
+        crossAxisCount: 3,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+      ),
       itemCount: photos.length,
       itemBuilder: (_, i) => _PhotoTile(photo: photos[i]),
     );

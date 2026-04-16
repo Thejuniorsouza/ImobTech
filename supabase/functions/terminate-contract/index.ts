@@ -1,6 +1,7 @@
 // Edge Function: terminate-contract
 // Marks a contract as terminated, sets the property back to vacant,
-// and cancels all future pending invoices.
+// cancels (not deletes) all future pending invoices, and creates a
+// proportional penalty invoice (multa rescisória).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
@@ -43,16 +44,13 @@ Deno.serve(async (req: Request) => {
             Deno.env.get("SUPABASE_URL") ?? "",
             Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
         );
-        const supabaseClient = createClient(
-            Deno.env.get("SUPABASE_URL") ?? "",
-            Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-            { global: { headers: { Authorization: authHeader } } },
-        );
 
+        // Verify the user JWT directly with admin client (avoids anon-key format issues)
+        const token = authHeader.replace("Bearer ", "");
         const {
             data: { user },
             error: userError,
-        } = await supabaseClient.auth.getUser();
+        } = await supabaseAdmin.auth.getUser(token);
         if (userError || !user) {
             return new Response(JSON.stringify({ error: "Unauthorized." }), {
                 status: 401,
@@ -83,7 +81,9 @@ Deno.serve(async (req: Request) => {
         // Verify contract ownership
         const { data: contract, error: contractError } = await supabaseAdmin
             .from("contracts")
-            .select("id, owner_id, property_id, status")
+            .select(
+                "id, owner_id, property_id, status, rent_amount_cents, start_date, end_date, due_day",
+            )
             .eq("id", contract_id)
             .single();
 
@@ -105,7 +105,10 @@ Deno.serve(async (req: Request) => {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
         }
-        if (contract.status !== "active") {
+        // Allow re-running termination if contract is already terminated
+        // (idempotent recovery from partial failures)
+        const alreadyTerminated = contract.status === "terminated";
+        if (contract.status !== "active" && !alreadyTerminated) {
             return new Response(
                 JSON.stringify({ error: "Contrato não está ativo." }),
                 {
@@ -118,31 +121,107 @@ Deno.serve(async (req: Request) => {
             );
         }
 
-        // Terminate the contract
-        await supabaseAdmin
+        const today = new Date();
+        const todayStr = today.toISOString().split("T")[0];
+
+        // 1. Cancel (not delete) all future pending invoices
+        const { error: cancelError } = await supabaseAdmin
+            .from("invoices")
+            .update({ status: "cancelled" })
+            .eq("contract_id", contract_id)
+            .eq("status", "pending")
+            .gt("due_date", todayStr);
+        if (cancelError)
+            throw new Error(
+                `Falha ao cancelar faturas: ${cancelError.message}`,
+            );
+
+        // 2. Calculate and insert penalty invoice (multa rescisória)
+        //    fine = 3 × rent × (remaining_months / total_months), capped at 3 × rent
+        const startDate = new Date(contract.start_date + "T12:00:00");
+        const endDate = new Date(contract.end_date + "T12:00:00");
+        const totalMonths = Math.max(
+            1,
+            (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+                (endDate.getMonth() - startDate.getMonth()),
+        );
+        const remainingMonths = Math.min(
+            Math.max(
+                0,
+                (endDate.getFullYear() - today.getFullYear()) * 12 +
+                    (endDate.getMonth() - today.getMonth()),
+            ),
+            totalMonths,
+        );
+        const fineCents = Math.round(
+            (3 * contract.rent_amount_cents * remainingMonths) / totalMonths,
+        );
+
+        if (fineCents > 0) {
+            const dueMonth = today.getMonth();
+            const dueYear = today.getFullYear();
+            const lastDayOfMonth = new Date(dueYear, dueMonth + 1, 0).getDate();
+            const dueDay = Math.min(contract.due_day, lastDayOfMonth);
+            const dueDateStr = `${dueYear}-${String(dueMonth + 1).padStart(2, "0")}-${String(dueDay).padStart(2, "0")}`;
+            const competenciaMonth = `${dueYear}-${String(dueMonth + 1).padStart(2, "0")}-01`;
+
+            // Check if fine invoice already exists (idempotency)
+            const { data: existingFine } = await supabaseAdmin
+                .from("invoices")
+                .select("id")
+                .eq("contract_id", contract_id)
+                .eq("invoice_type", "fine")
+                .maybeSingle();
+
+            if (!existingFine) {
+                const { error: fineError } = await supabaseAdmin
+                    .from("invoices")
+                    .insert({
+                        contract_id,
+                        competencia_month: competenciaMonth,
+                        due_date: dueDateStr,
+                        amount_cents: fineCents,
+                        invoice_type: "fine",
+                        status: "pending",
+                    });
+                if (fineError)
+                    throw new Error(
+                        `Falha ao criar multa: ${fineError.message}`,
+                    );
+            }
+        }
+
+        // 3. Mark contract as terminated
+        const { error: terminateError } = await supabaseAdmin
             .from("contracts")
             .update({ status: "terminated" })
             .eq("id", contract_id);
+        if (terminateError)
+            throw new Error(
+                `Falha ao rescindir contrato: ${terminateError.message}`,
+            );
 
-        // Set property back to vacant
-        await supabaseAdmin
+        // 4. Set property back to vacant
+        const { error: vacateError } = await supabaseAdmin
             .from("properties")
             .update({ status: "vacant" })
             .eq("id", contract.property_id);
+        if (vacateError)
+            throw new Error(`Falha ao liberar imóvel: ${vacateError.message}`);
 
-        // Cancel all future pending invoices
-        const today = new Date().toISOString().split("T")[0];
-        await supabaseAdmin
-            .from("invoices")
-            .delete()
-            .eq("contract_id", contract_id)
-            .eq("status", "pending")
-            .gt("due_date", today);
-
-        return new Response(JSON.stringify({ success: true, contract_id }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+            JSON.stringify({
+                success: true,
+                contract_id,
+                fine_cents: fineCents,
+                remaining_months: remainingMonths,
+                total_months: totalMonths,
+            }),
+            {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+        );
     } catch (err) {
         console.error("terminate-contract error:", err);
         return new Response(

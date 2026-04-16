@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import {
     Receipt,
     CheckCircle2,
@@ -10,6 +11,11 @@ import {
     X,
     TrendingUp,
     Banknote,
+    Trash2,
+    Plus,
+    FileText,
+    ChevronLeft,
+    ChevronRight,
 } from "lucide-react";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -54,32 +60,84 @@ const statusIcon: Record<InvoiceStatus, React.ReactNode> = {
 export function InvoicesPage() {
     const { user } = useAuth();
     const qc = useQueryClient();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // ── Filters ──────────────────────────────────────────────────────────────
+    type QuickFilter = "all" | "month" | "overdue" | "paid";
+    const [quickFilter, setQuickFilter] = useState<QuickFilter>("month");
+    const [dateFrom, setDateFrom] = useState(""); // "YYYY-MM-DD"
+    const [dateTo, setDateTo] = useState(""); // "YYYY-MM-DD"
+    const [tenantSearch, setTenantSearch] = useState("");
+    // When set, filters by paid_at month (used when navigating from chart)
+    const [paidMonthFilter, setPaidMonthFilter] = useState<string | null>(null); // "YYYY-MM"
+
+    // Pagination
+    const PAGE_SIZE = 20;
+    const [currentPage, setCurrentPage] = useState(1);
+
+    // Initialise filters from URL query params (e.g. from dashboard click)
+    useEffect(() => {
+        const paidMonth = searchParams.get("paidMonth"); // "YYYY-MM"
+        const month = searchParams.get("month"); // "YYYY-MM"
+        const filter = searchParams.get("filter") as QuickFilter | null;
+        if (paidMonth) {
+            setPaidMonthFilter(paidMonth);
+            setQuickFilter("paid");
+        } else if (month) {
+            const [y, m] = month.split("-");
+            const first = `${y}-${m}-01`;
+            const last = new Date(Number(y), Number(m), 0);
+            const lastStr = `${y}-${m}-${String(last.getDate()).padStart(2, "0")}`;
+            setDateFrom(first);
+            setDateTo(lastStr);
+            if (filter) setQuickFilter(filter);
+        } else if (filter) {
+            setQuickFilter(filter);
+        }
+        if (paidMonth || month || filter)
+            setSearchParams({}, { replace: true });
+        setCurrentPage(1);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+    const [editTab, setEditTab] = useState<"details" | "notes">("details");
     const [editForm, setEditForm] = useState({
         amount: "",
         due_date: "",
         invoice_type: "",
         status: "",
         paid_at: "",
+        description: "",
     });
     const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
+    const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(
+        null,
+    );
+    const [createOpen, setCreateOpen] = useState(false);
+    const [createForm, setCreateForm] = useState({
+        contract_id: "",
+        amount: "",
+        due_date: "",
+        invoice_type: InvoiceType.Other,
+        description: "",
+    });
     const todayStr = new Date().toISOString().split("T")[0];
     const clampToToday = (date: string) => (date > todayStr ? todayStr : date);
     const [payDate, setPayDate] = useState("");
-
-    // ── Filters ──────────────────────────────────────────────────────────────
-    type QuickFilter = "all" | "month" | "overdue" | "paid";
-    const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
-    const [dateFrom, setDateFrom] = useState(""); // "YYYY-MM-DD"
-    const [dateTo, setDateTo] = useState(""); // "YYYY-MM-DD"
-    const [tenantSearch, setTenantSearch] = useState("");
 
     const { data: rawInvoices = [], isLoading } = useQuery({
         queryKey: ["owner-invoices", user?.id],
         queryFn: () => contractService.listInvoicesByOwner(user!.id),
         enabled: !!user,
     });
+
+    const { data: contracts = [] } = useQuery({
+        queryKey: ["owner-contracts", user?.id],
+        queryFn: () => contractService.listByOwner(user!.id),
+        enabled: !!user,
+    });
+    const activeContracts = contracts.filter((c) => c.status === "active");
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -100,6 +158,25 @@ export function InvoicesPage() {
 
     const filteredInvoices = useMemo(() => {
         let list = invoices;
+
+        // If coming from chart: filter by paid_at month
+        if (paidMonthFilter) {
+            const [py, pm] = paidMonthFilter.split("-").map(Number);
+            list = list.filter((i) => {
+                if (!i.paid_at) return false;
+                const pd = new Date(i.paid_at);
+                return pd.getFullYear() === py && pd.getMonth() + 1 === pm;
+            });
+            if (tenantSearch.trim()) {
+                const q = tenantSearch.toLowerCase();
+                list = list.filter((i) =>
+                    ((i.contract as any)?.tenant_name ?? "")
+                        .toLowerCase()
+                        .includes(q),
+                );
+            }
+            return list;
+        }
 
         // Quick filter chip
         if (quickFilter === "month") {
@@ -139,7 +216,24 @@ export function InvoicesPage() {
         }
 
         return list;
-    }, [invoices, quickFilter, dateFrom, dateTo, tenantSearch, today]);
+    }, [
+        invoices,
+        quickFilter,
+        dateFrom,
+        dateTo,
+        tenantSearch,
+        today,
+        paidMonthFilter,
+    ]);
+
+    const totalPages = Math.max(
+        1,
+        Math.ceil(filteredInvoices.length / PAGE_SIZE),
+    );
+    const paginatedInvoices = filteredInvoices.slice(
+        (currentPage - 1) * PAGE_SIZE,
+        currentPage * PAGE_SIZE,
+    );
 
     const payMutation = useMutation({
         mutationFn: ({ id, paidAt }: { id: string; paidAt: string }) =>
@@ -151,6 +245,36 @@ export function InvoicesPage() {
         },
     });
 
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => contractService.deleteInvoice(id),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["owner-invoices"] });
+            setDeletingInvoice(null);
+        },
+    });
+
+    const createMutation = useMutation({
+        mutationFn: () =>
+            contractService.createStandaloneInvoice({
+                contract_id: createForm.contract_id,
+                amount_cents: Math.round(Number(createForm.amount) * 100),
+                due_date: createForm.due_date,
+                invoice_type: createForm.invoice_type,
+                description: createForm.description || undefined,
+            }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["owner-invoices"] });
+            setCreateOpen(false);
+            setCreateForm({
+                contract_id: "",
+                amount: "",
+                due_date: "",
+                invoice_type: InvoiceType.Other,
+                description: "",
+            });
+        },
+    });
+
     const editMutation = useMutation({
         mutationFn: () =>
             contractService.updateInvoice(editingInvoice!.id, {
@@ -158,6 +282,7 @@ export function InvoicesPage() {
                 due_date: editForm.due_date,
                 invoice_type: editForm.invoice_type,
                 status: editForm.status,
+                description: editForm.description || null,
                 paid_at:
                     editForm.status === InvoiceStatus.Paid
                         ? editForm.paid_at
@@ -175,6 +300,7 @@ export function InvoicesPage() {
 
     function openEdit(inv: Invoice) {
         setEditingInvoice(inv);
+        setEditTab("details");
         setEditForm({
             amount: String(inv.amount_cents / 100),
             due_date: inv.due_date,
@@ -183,6 +309,7 @@ export function InvoicesPage() {
             paid_at: inv.paid_at
                 ? new Date(inv.paid_at).toISOString().split("T")[0]
                 : "",
+            description: inv.description ?? "",
         });
     }
     const setE =
@@ -203,6 +330,22 @@ export function InvoicesPage() {
                         contratos
                     </p>
                 </div>
+                <Button
+                    onClick={() => {
+                        setCreateForm({
+                            contract_id: activeContracts[0]?.id ?? "",
+                            amount: "",
+                            due_date: "",
+                            invoice_type: InvoiceType.Other,
+                            description: "",
+                        });
+                        setCreateOpen(true);
+                    }}
+                    className="flex items-center gap-2"
+                >
+                    <Plus className="w-4 h-4" />
+                    Nova Fatura
+                </Button>
             </div>
 
             {/* ── Summary cards ── */}
@@ -323,6 +466,7 @@ export function InvoicesPage() {
                                             setQuickFilter(key);
                                             setDateFrom("");
                                             setDateTo("");
+                                            setCurrentPage(1);
                                         }}
                                         className={`px-3.5 py-1.5 rounded-xl border text-xs font-medium transition-all ${
                                             quickFilter === key &&
@@ -378,6 +522,7 @@ export function InvoicesPage() {
                                         onChange={(v) => {
                                             setDateFrom(v);
                                             setQuickFilter("all");
+                                            setCurrentPage(1);
                                         }}
                                         placeholder="Data inicial"
                                         maxDate={
@@ -398,6 +543,7 @@ export function InvoicesPage() {
                                         onChange={(v) => {
                                             setDateTo(v);
                                             setQuickFilter("all");
+                                            setCurrentPage(1);
                                         }}
                                         placeholder="Data final"
                                         minDate={
@@ -428,9 +574,10 @@ export function InvoicesPage() {
                                     type="text"
                                     placeholder="Buscar inquilino..."
                                     value={tenantSearch}
-                                    onChange={(e) =>
-                                        setTenantSearch(e.target.value)
-                                    }
+                                    onChange={(e) => {
+                                        setTenantSearch(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                     className="pl-9 pr-8 py-2 text-xs border border-gray-200 rounded-xl outline-none focus:border-primary-400 bg-white text-gray-700 w-full sm:w-52"
                                 />
                                 {tenantSearch && (
@@ -452,7 +599,7 @@ export function InvoicesPage() {
                                 Nenhuma fatura para os filtros selecionados
                             </p>
                         ) : (
-                            filteredInvoices.map((inv) => (
+                            paginatedInvoices.map((inv) => (
                                 <div
                                     key={inv.id}
                                     className={`px-4 py-4 flex items-start gap-3 ${isPastDue(inv) ? "bg-red-50/40" : ""}`}
@@ -552,6 +699,15 @@ export function InvoicesPage() {
                                         >
                                             <Pencil className="w-3.5 h-3.5" />
                                         </button>
+                                        <button
+                                            onClick={() =>
+                                                setDeletingInvoice(inv)
+                                            }
+                                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                                            title="Excluir fatura"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
                                     </div>
                                 </div>
                             ))
@@ -596,7 +752,7 @@ export function InvoicesPage() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredInvoices.map((inv) => (
+                                    paginatedInvoices.map((inv) => (
                                         <tr
                                             key={inv.id}
                                             className={`transition-colors ${
@@ -730,6 +886,17 @@ export function InvoicesPage() {
                                                     >
                                                         <Pencil className="w-3.5 h-3.5" />
                                                     </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            setDeletingInvoice(
+                                                                inv,
+                                                            )
+                                                        }
+                                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                                                        title="Excluir fatura"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -738,6 +905,82 @@ export function InvoicesPage() {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* ── Pagination ── */}
+                    {totalPages > 1 && (
+                        <div className="px-5 py-3 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <span className="text-xs text-gray-400">
+                                Mostrando {(currentPage - 1) * PAGE_SIZE + 1}–
+                                {Math.min(
+                                    currentPage * PAGE_SIZE,
+                                    filteredInvoices.length,
+                                )}{" "}
+                                de {filteredInvoices.length} faturas
+                            </span>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setCurrentPage((p) => p - 1)}
+                                    disabled={currentPage === 1}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                )
+                                    .filter(
+                                        (p) =>
+                                            p === 1 ||
+                                            p === totalPages ||
+                                            Math.abs(p - currentPage) <= 1,
+                                    )
+                                    .reduce<(number | "...")[]>(
+                                        (acc, p, idx, arr) => {
+                                            if (
+                                                idx > 0 &&
+                                                p - (arr[idx - 1] as number) > 1
+                                            )
+                                                acc.push("...");
+                                            acc.push(p);
+                                            return acc;
+                                        },
+                                        [],
+                                    )
+                                    .map((p, i) =>
+                                        p === "..." ? (
+                                            <span
+                                                key={`ellipsis-${i}`}
+                                                className="px-1 text-xs text-gray-400"
+                                            >
+                                                …
+                                            </span>
+                                        ) : (
+                                            <button
+                                                key={p}
+                                                onClick={() =>
+                                                    setCurrentPage(p as number)
+                                                }
+                                                className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition-colors ${
+                                                    p === currentPage
+                                                        ? "bg-primary-600 text-white border border-primary-600"
+                                                        : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                                                }`}
+                                            >
+                                                {p}
+                                            </button>
+                                        ),
+                                    )}
+                                <button
+                                    onClick={() => setCurrentPage((p) => p + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </Card>
             )}
 
@@ -748,6 +991,31 @@ export function InvoicesPage() {
                 title="Editar Fatura"
                 className="max-w-md mx-4"
             >
+                {/* Tabs */}
+                <div className="flex border-b border-gray-200 mb-4 -mt-1">
+                    <button
+                        onClick={() => setEditTab("details")}
+                        className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                            editTab === "details"
+                                ? "border-primary-600 text-primary-700"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Detalhes
+                    </button>
+                    <button
+                        onClick={() => setEditTab("notes")}
+                        className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                            editTab === "notes"
+                                ? "border-primary-600 text-primary-700"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        <FileText className="w-3.5 h-3.5" />
+                        Anotações
+                    </button>
+                </div>
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
@@ -755,109 +1023,147 @@ export function InvoicesPage() {
                     }}
                     className="space-y-4"
                 >
-                    <Input
-                        label="Valor (R$)"
-                        id="edit_amount"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={editForm.amount}
-                        onChange={setE("amount")}
-                        required
-                    />
-                    <div className="flex flex-col gap-1.5">
-                        <label
-                            htmlFor="edit_due"
-                            className="text-sm font-medium text-gray-700"
-                        >
-                            Vencimento
-                        </label>
-                        <input
-                            id="edit_due"
-                            type="date"
-                            value={editForm.due_date}
-                            onChange={(e) =>
-                                setEditForm((f) => ({
-                                    ...f,
-                                    due_date: e.target.value,
-                                }))
-                            }
-                            required
-                            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white"
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-gray-700">
-                            Tipo
-                        </label>
-                        <select
-                            value={editForm.invoice_type}
-                            onChange={setE("invoice_type")}
-                            className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary-400"
-                        >
-                            {Object.values(InvoiceType).map((t) => (
-                                <option key={t} value={t}>
-                                    {INVOICE_TYPE_LABEL[t]}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-gray-700">
-                            Status
-                        </label>
-                        <select
-                            value={editForm.status}
-                            onChange={(e) => {
-                                const s = e.target.value;
-                                setEditForm((f) => ({
-                                    ...f,
-                                    status: s,
-                                    paid_at:
-                                        s === InvoiceStatus.Paid
-                                            ? f.paid_at ||
-                                              new Date()
-                                                  .toISOString()
-                                                  .split("T")[0]
-                                            : "",
-                                }));
-                            }}
-                            className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary-400"
-                        >
-                            <option value={InvoiceStatus.Pending}>
-                                {INVOICE_STATUS_LABEL[InvoiceStatus.Pending]}
-                            </option>
-                            <option value={InvoiceStatus.Paid}>
-                                {INVOICE_STATUS_LABEL[InvoiceStatus.Paid]}
-                            </option>
-                            <option value={InvoiceStatus.Overdue}>
-                                {INVOICE_STATUS_LABEL[InvoiceStatus.Overdue]}
-                            </option>
-                            <option value={InvoiceStatus.Cancelled}>
-                                {INVOICE_STATUS_LABEL[InvoiceStatus.Cancelled]}
-                            </option>
-                        </select>
-                    </div>
-                    {editForm.status === InvoiceStatus.Paid && (
+                    {editTab === "details" ? (
+                        <>
+                            <Input
+                                label="Valor (R$)"
+                                id="edit_amount"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={editForm.amount}
+                                onChange={setE("amount")}
+                                required
+                            />
+                            <div className="flex flex-col gap-1.5">
+                                <label
+                                    htmlFor="edit_due"
+                                    className="text-sm font-medium text-gray-700"
+                                >
+                                    Vencimento
+                                </label>
+                                <input
+                                    id="edit_due"
+                                    type="date"
+                                    value={editForm.due_date}
+                                    onChange={(e) =>
+                                        setEditForm((f) => ({
+                                            ...f,
+                                            due_date: e.target.value,
+                                        }))
+                                    }
+                                    required
+                                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-sm font-medium text-gray-700">
+                                    Tipo
+                                </label>
+                                <select
+                                    value={editForm.invoice_type}
+                                    onChange={setE("invoice_type")}
+                                    className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary-400"
+                                >
+                                    {Object.values(InvoiceType).map((t) => (
+                                        <option key={t} value={t}>
+                                            {INVOICE_TYPE_LABEL[t]}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-sm font-medium text-gray-700">
+                                    Status
+                                </label>
+                                <select
+                                    value={editForm.status}
+                                    onChange={(e) => {
+                                        const s = e.target.value;
+                                        setEditForm((f) => ({
+                                            ...f,
+                                            status: s,
+                                            paid_at:
+                                                s === InvoiceStatus.Paid
+                                                    ? f.paid_at ||
+                                                      new Date()
+                                                          .toISOString()
+                                                          .split("T")[0]
+                                                    : "",
+                                        }));
+                                    }}
+                                    className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary-400"
+                                >
+                                    <option value={InvoiceStatus.Pending}>
+                                        {
+                                            INVOICE_STATUS_LABEL[
+                                                InvoiceStatus.Pending
+                                            ]
+                                        }
+                                    </option>
+                                    <option value={InvoiceStatus.Paid}>
+                                        {
+                                            INVOICE_STATUS_LABEL[
+                                                InvoiceStatus.Paid
+                                            ]
+                                        }
+                                    </option>
+                                    <option value={InvoiceStatus.Overdue}>
+                                        {
+                                            INVOICE_STATUS_LABEL[
+                                                InvoiceStatus.Overdue
+                                            ]
+                                        }
+                                    </option>
+                                    <option value={InvoiceStatus.Cancelled}>
+                                        {
+                                            INVOICE_STATUS_LABEL[
+                                                InvoiceStatus.Cancelled
+                                            ]
+                                        }
+                                    </option>
+                                </select>
+                            </div>
+                            {editForm.status === InvoiceStatus.Paid && (
+                                <div className="flex flex-col gap-1.5">
+                                    <label
+                                        htmlFor="edit_paid_at"
+                                        className="text-sm font-medium text-gray-700"
+                                    >
+                                        Data do pagamento
+                                    </label>
+                                    <input
+                                        id="edit_paid_at"
+                                        type="date"
+                                        value={editForm.paid_at}
+                                        onChange={(e) =>
+                                            setEditForm((f) => ({
+                                                ...f,
+                                                paid_at: e.target.value,
+                                            }))
+                                        }
+                                        required
+                                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white"
+                                    />
+                                </div>
+                            )}
+                        </>
+                    ) : (
                         <div className="flex flex-col gap-1.5">
-                            <label
-                                htmlFor="edit_paid_at"
-                                className="text-sm font-medium text-gray-700"
-                            >
-                                Data do pagamento
+                            <label className="text-sm font-medium text-gray-700">
+                                Anotações
                             </label>
-                            <input
-                                id="edit_paid_at"
-                                type="date"
-                                value={editForm.paid_at}
+                            <textarea
+                                rows={8}
+                                placeholder="Adicione observações sobre esta fatura..."
+                                value={editForm.description}
                                 onChange={(e) =>
                                     setEditForm((f) => ({
                                         ...f,
-                                        paid_at: e.target.value,
+                                        description: e.target.value,
                                     }))
                                 }
-                                required
-                                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white"
+                                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white resize-none"
                             />
                         </div>
                     )}
@@ -881,7 +1187,214 @@ export function InvoicesPage() {
                     </div>
                 </form>
             </Modal>
-            {/* ── Payment Confirmation Modal ── */}
+            {/* ── Delete Confirmation Modal ── */}
+            <Modal
+                open={!!deletingInvoice}
+                onClose={() => setDeletingInvoice(null)}
+                title="Excluir Fatura"
+                className="max-w-sm mx-4"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                        Tem certeza que deseja excluir esta fatura? Esta ação
+                        não pode ser desfeita.
+                    </p>
+                    {deletingInvoice && (
+                        <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm space-y-1">
+                            <p className="text-gray-500">
+                                Valor:{" "}
+                                <span className="font-semibold text-gray-900">
+                                    {formatBRL(deletingInvoice.amount_cents)}
+                                </span>
+                            </p>
+                            <p className="text-gray-500">
+                                Iniquilino:{" "}
+                                <span className="font-medium text-gray-700">
+                                    {(deletingInvoice.contract as any)
+                                        ?.tenant_name ?? "—"}
+                                </span>
+                            </p>
+                            <p className="text-gray-500">
+                                Tipo:{" "}
+                                <span className="font-medium text-gray-700">
+                                    {
+                                        INVOICE_TYPE_LABEL[
+                                            deletingInvoice.invoice_type
+                                        ]
+                                    }
+                                </span>
+                            </p>
+                        </div>
+                    )}
+                    {deleteMutation.isError && (
+                        <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">
+                            {(deleteMutation.error as Error)?.message ||
+                                "Erro ao excluir"}
+                        </p>
+                    )}
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setDeletingInvoice(null)}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            loading={deleteMutation.isPending}
+                            onClick={() =>
+                                deletingInvoice &&
+                                deleteMutation.mutate(deletingInvoice.id)
+                            }
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            Excluir
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* ── Create Standalone Invoice Modal ── */}
+            <Modal
+                open={createOpen}
+                onClose={() => setCreateOpen(false)}
+                title="Nova Fatura Avulsa"
+                className="max-w-md mx-4"
+            >
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        createMutation.mutate();
+                    }}
+                    className="space-y-4"
+                >
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-gray-700">
+                            Contrato / Inquilino
+                        </label>
+                        <select
+                            value={createForm.contract_id}
+                            onChange={(e) =>
+                                setCreateForm((f) => ({
+                                    ...f,
+                                    contract_id: e.target.value,
+                                }))
+                            }
+                            required
+                            className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary-400"
+                        >
+                            <option value="">Selecione um contrato…</option>
+                            {contracts.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                    {c.tenant_name}
+                                    {c.status !== "active"
+                                        ? " (encerrado)"
+                                        : ""}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-gray-700">
+                            Categoria
+                        </label>
+                        <select
+                            value={createForm.invoice_type}
+                            onChange={(e) =>
+                                setCreateForm((f) => ({
+                                    ...f,
+                                    invoice_type: e.target.value as InvoiceType,
+                                }))
+                            }
+                            className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary-400"
+                        >
+                            {Object.values(InvoiceType).map((t) => (
+                                <option key={t} value={t}>
+                                    {INVOICE_TYPE_LABEL[t]}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <Input
+                        label="Valor (R$)"
+                        id="create_amount"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={createForm.amount}
+                        onChange={(e) =>
+                            setCreateForm((f) => ({
+                                ...f,
+                                amount: e.target.value,
+                            }))
+                        }
+                        required
+                    />
+                    <div className="flex flex-col gap-1.5">
+                        <label
+                            htmlFor="create_due"
+                            className="text-sm font-medium text-gray-700"
+                        >
+                            Vencimento
+                        </label>
+                        <input
+                            id="create_due"
+                            type="date"
+                            value={createForm.due_date}
+                            onChange={(e) =>
+                                setCreateForm((f) => ({
+                                    ...f,
+                                    due_date: e.target.value,
+                                }))
+                            }
+                            required
+                            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white"
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-gray-700">
+                            Anotações{" "}
+                            <span className="text-gray-400 font-normal">
+                                (opcional)
+                            </span>
+                        </label>
+                        <textarea
+                            rows={3}
+                            placeholder="Descreva o motivo ou detalhes desta cobrança…"
+                            value={createForm.description}
+                            onChange={(e) =>
+                                setCreateForm((f) => ({
+                                    ...f,
+                                    description: e.target.value,
+                                }))
+                            }
+                            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white resize-none"
+                        />
+                    </div>
+                    {createMutation.isError && (
+                        <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">
+                            {(createMutation.error as Error)?.message ||
+                                "Erro ao criar fatura"}
+                        </p>
+                    )}
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setCreateOpen(false)}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="submit"
+                            loading={createMutation.isPending}
+                        >
+                            Criar Fatura
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
             <Modal
                 open={!!payingInvoice}
                 onClose={() => setPayingInvoice(null)}

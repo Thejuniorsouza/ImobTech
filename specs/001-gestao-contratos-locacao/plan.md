@@ -134,9 +134,15 @@ supabase/                         # Supabase project config + Edge Functions
 │   ├── 00002_rls_policies.sql
 │   └── 00003_audit_triggers.sql
 ├── functions/                    # Supabase Edge Functions (Deno/TypeScript)
-│   ├── generate-contract-pdf/    # Geração assíncrona de PDF
+│   ├── create-contract/          # Criação de contrato: validação, faturas, PDF, status imóvel
 │   │   └── index.ts
-│   ├── generate-invoices/        # Geração idempotente de cobranças
+│   ├── terminate-contract/       # Encerramento de contrato + cancelamento de faturas futuras
+│   │   └── index.ts
+│   ├── dashboard-metrics/        # Agregação de métricas financeiras por owner
+│   │   └── index.ts
+│   ├── generate-ad/              # Formatação de anúncio para OLX, ZAP, Viva Real
+│   │   └── index.ts
+│   ├── delete-user-data/         # LGPD FR-018: exclusão de dados pessoais sob demanda
 │   │   └── index.ts
 │   └── _shared/                  # Código compartilhado entre functions
 │       ├── types.ts

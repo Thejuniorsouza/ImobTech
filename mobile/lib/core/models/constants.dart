@@ -19,12 +19,14 @@ const Map<PropertyStatus, String> propertyStatusLabels = {
 const Map<ContractStatus, String> contractStatusLabels = {
   ContractStatus.active: 'Ativo',
   ContractStatus.terminated: 'Encerrado',
+  ContractStatus.expired: 'Expirado',
 };
 
 const Map<InvoiceStatus, String> invoiceStatusLabels = {
   InvoiceStatus.pending: 'Pendente',
   InvoiceStatus.paid: 'Pago',
   InvoiceStatus.overdue: 'Atrasado',
+  InvoiceStatus.cancelled: 'Cancelado',
 };
 
 const Map<InvoiceType, String> invoiceTypeLabels = {
@@ -32,6 +34,8 @@ const Map<InvoiceType, String> invoiceTypeLabels = {
   InvoiceType.deposit: 'Caução',
   InvoiceType.iptu: 'IPTU',
   InvoiceType.condo: 'Condomínio',
+  InvoiceType.fine: 'Multa rescisória',
+  InvoiceType.other: 'Outro',
 };
 
 const Map<InspectionType, String> inspectionTypeLabels = {

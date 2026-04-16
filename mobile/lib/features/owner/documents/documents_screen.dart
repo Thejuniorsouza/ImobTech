@@ -6,17 +6,17 @@ import '../../../core/models/domain_models.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────
 
-final contractDocumentsProvider =
-    FutureProvider.autoDispose.family<List<SharedDocument>, String>((ref, contractId) async {
-  final response = await supabase
-      .from('shared_documents')
-      .select()
-      .eq('contract_id', contractId)
-      .order('created_at', ascending: false);
-  return (response as List)
-      .map((e) => SharedDocument.fromJson(e as Map<String, dynamic>))
-      .toList();
-});
+final contractDocumentsProvider = FutureProvider.autoDispose
+    .family<List<SharedDocument>, String>((ref, contractId) async {
+      final response = await supabase
+          .from('shared_documents')
+          .select()
+          .eq('contract_id', contractId)
+          .order('created_at', ascending: false);
+      return (response as List)
+          .map((e) => SharedDocument.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
 
 // ── Screen ────────────────────────────────────────────────────────────────
 
@@ -56,8 +56,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Enviar documento',
-                      style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    'Enviar documento',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: _selectedType,
@@ -74,12 +76,15 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
-                    onPressed: _uploading ? null : () => _pickAndUpload(context),
+                    onPressed: _uploading
+                        ? null
+                        : () => _pickAndUpload(context),
                     icon: _uploading
                         ? const SizedBox(
                             height: 16,
                             width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.upload_file_outlined),
                     label: const Text('Selecionar arquivo'),
                   ),
@@ -88,21 +93,30 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          Text('Documentos enviados',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Documentos enviados',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           docsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Text('Erro: $e'),
             data: (docs) => docs.isEmpty
-                ? const Text('Nenhum documento enviado ainda.',
-                    style: TextStyle(color: Colors.grey))
+                ? const Text(
+                    'Nenhum documento enviado ainda.',
+                    style: TextStyle(color: Colors.grey),
+                  )
                 : Column(
-                    children: docs.map((d) => _DocumentTile(
-                      doc: d,
-                      onDeleted: () =>
-                          ref.invalidate(contractDocumentsProvider(widget.contractId)),
-                    )).toList(),
+                    children: docs
+                        .map(
+                          (d) => _DocumentTile(
+                            doc: d,
+                            onDeleted: () => ref.invalidate(
+                              contractDocumentsProvider(widget.contractId),
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
           ),
         ],
@@ -117,7 +131,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text(
-            'Para enviar documentos, adicione o package file_picker ao pubspec.yaml.'),
+          'Para enviar documentos, adicione o package file_picker ao pubspec.yaml.',
+        ),
         action: SnackBarAction(label: 'OK', onPressed: () {}),
       ),
     );
@@ -144,22 +159,24 @@ class _DocumentTileState extends ConsumerState<_DocumentTile> {
           .from('shared-documents')
           .createSignedUrl(widget.doc.storagePath, 300);
       if (!context.mounted) return;
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Link do Documento'),
           content: SelectableText(url, style: const TextStyle(fontSize: 12)),
           actions: [
             TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Fechar')),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Fechar'),
+            ),
           ],
         ),
       );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 
@@ -171,8 +188,9 @@ class _DocumentTileState extends ConsumerState<_DocumentTile> {
         content: Text('Excluir "${widget.doc.fileName}"?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar')),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.of(context).pop(true),
@@ -185,18 +203,16 @@ class _DocumentTileState extends ConsumerState<_DocumentTile> {
     if (confirmed != true) return;
     setState(() => _busy = true);
     try {
-      await supabase.storage
-          .from('shared-documents')
-          .remove([widget.doc.storagePath]);
-      await supabase
-          .from('shared_documents')
-          .delete()
-          .eq('id', widget.doc.id);
+      await supabase.storage.from('shared-documents').remove([
+        widget.doc.storagePath,
+      ]);
+      await supabase.from('shared_documents').delete().eq('id', widget.doc.id);
       widget.onDeleted();
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro: $e')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -208,16 +224,21 @@ class _DocumentTileState extends ConsumerState<_DocumentTile> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: const Icon(Icons.insert_drive_file_outlined),
-        title: Text(widget.doc.fileName,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13)),
-        subtitle: Text(widget.doc.documentType,
-            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        title: Text(
+          widget.doc.fileName,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13),
+        ),
+        subtitle: Text(
+          widget.doc.documentType,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
         trailing: _busy
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2))
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

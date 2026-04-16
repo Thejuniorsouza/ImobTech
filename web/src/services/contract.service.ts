@@ -100,13 +100,33 @@ export const contractService = {
         const { data, error } = await supabase
             .from("invoices")
             .select(
-                "*, contract:contracts!inner(owner_id,tenant_name,property:properties(address_street,address_number))",
+                "id,contract_id,competencia_month,due_date,amount_cents,invoice_type,status,paid_at,description,created_at,updated_at,contract:contracts!inner(owner_id,tenant_name,property:properties(address_street,address_number))",
             )
             .eq("contract.owner_id", ownerId)
             .neq("status", "cancelled")
             .order("due_date", { ascending: true });
         if (error) throw error;
         return (data ?? []) as Invoice[];
+    },
+
+    async createStandaloneInvoice(data: {
+        contract_id: string;
+        amount_cents: number;
+        due_date: string;
+        invoice_type: string;
+        description?: string;
+    }): Promise<void> {
+        const competencia = data.due_date.substring(0, 7) + "-01";
+        const { error } = await supabase.from("invoices").insert({
+            contract_id: data.contract_id,
+            competencia_month: competencia,
+            due_date: data.due_date,
+            amount_cents: data.amount_cents,
+            invoice_type: data.invoice_type,
+            status: "pending",
+            description: data.description ?? null,
+        });
+        if (error) throw error;
     },
 
     async markInvoicePaid(invoiceId: string, paidAt: string): Promise<void> {
@@ -301,6 +321,7 @@ export const contractService = {
             invoice_type?: string;
             status?: string;
             paid_at?: string | null;
+            description?: string | null;
         },
     ): Promise<void> {
         const { error } = await supabase

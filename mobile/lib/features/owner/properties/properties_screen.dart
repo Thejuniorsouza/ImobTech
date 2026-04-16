@@ -5,11 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/supabase_client.dart';
 import '../../../core/models/domain_models.dart';
 import '../../../core/models/constants.dart';
-import '../../../core/utils/currency.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────
 
-final propertiesProvider = FutureProvider.autoDispose<List<Property>>((ref) async {
+final propertiesProvider = FutureProvider.autoDispose<List<Property>>((
+  ref,
+) async {
   final user = supabase.auth.currentUser;
   if (user == null) return [];
 
@@ -55,7 +56,10 @@ class PropertiesScreen extends ConsumerWidget {
                 children: [
                   const Icon(Icons.home_outlined, size: 64, color: Colors.grey),
                   const SizedBox(height: 12),
-                  const Text('Nenhum imóvel cadastrado.', style: TextStyle(color: Colors.grey)),
+                  const Text(
+                    'Nenhum imóvel cadastrado.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: () => context.go('/owner/properties/new'),
@@ -120,7 +124,9 @@ class _PropertyCard extends StatelessWidget {
                         ? Colors.green.shade100
                         : Colors.blue.shade100,
                     labelStyle: TextStyle(
-                      color: isRented ? Colors.green.shade800 : Colors.blue.shade800,
+                      color: isRented
+                          ? Colors.green.shade800
+                          : Colors.blue.shade800,
                     ),
                     side: BorderSide.none,
                   ),

@@ -9,7 +9,9 @@ import '../../../core/utils/currency.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────
 
-final ownerContractsProvider = FutureProvider.autoDispose<List<Contract>>((ref) async {
+final ownerContractsProvider = FutureProvider.autoDispose<List<Contract>>((
+  ref,
+) async {
   final user = supabase.auth.currentUser;
   if (user == null) return [];
 
@@ -44,21 +46,72 @@ class ContractsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.description_outlined, size: 64, color: Colors.grey),
+                  Icon(
+                    Icons.description_outlined,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
                   SizedBox(height: 12),
-                  Text('Nenhum contrato cadastrado.', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'Nenhum contrato cadastrado.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             );
           }
 
+          final activeContracts = contracts
+              .where((c) => c.status == ContractStatus.active)
+              .toList();
+          final inactiveContracts = contracts
+              .where((c) => c.status != ContractStatus.active)
+              .toList();
+
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(ownerContractsProvider),
-            child: ListView.separated(
+            child: ListView(
               padding: const EdgeInsets.all(16),
-              itemCount: contracts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (ctx, i) => _ContractCard(contract: contracts[i]),
+              children: [
+                ...activeContracts.map(
+                  (c) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ContractCard(contract: c),
+                  ),
+                ),
+                if (inactiveContracts.isNotEmpty) ...[
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(child: Divider()),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'CONTRATOS INATIVOS',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider()),
+                      ],
+                    ),
+                  ),
+                  ...inactiveContracts.map(
+                    (c) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Opacity(
+                        opacity: 0.65,
+                        child: _ContractCard(contract: c),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           );
         },
@@ -89,7 +142,10 @@ class _ContractCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       contract.tenantName,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
                     ),
                   ),
                   Chip(
@@ -98,9 +154,13 @@ class _ContractCard extends StatelessWidget {
                       style: const TextStyle(fontSize: 11),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
-                    backgroundColor: isActive ? Colors.green.shade100 : Colors.grey.shade200,
+                    backgroundColor: isActive
+                        ? Colors.green.shade100
+                        : Colors.grey.shade200,
                     labelStyle: TextStyle(
-                      color: isActive ? Colors.green.shade800 : Colors.grey.shade600,
+                      color: isActive
+                          ? Colors.green.shade800
+                          : Colors.grey.shade600,
                     ),
                     side: BorderSide.none,
                   ),

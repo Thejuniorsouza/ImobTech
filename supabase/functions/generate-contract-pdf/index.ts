@@ -51,18 +51,19 @@ Deno.serve(async (req: Request) => {
             Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
         );
 
-        // Use anon client for user-scoped operations
+        // Use service role client with user's auth header for RLS-scoped queries
         const supabaseClient = createClient(
             Deno.env.get("SUPABASE_URL") ?? "",
-            Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
             { global: { headers: { Authorization: authHeader } } },
         );
 
-        // Identify the calling user
+        // Identify the calling user via admin (avoids anon-key format issues)
+        const token = authHeader.replace("Bearer ", "");
         const {
             data: { user },
             error: userError,
-        } = await supabaseClient.auth.getUser();
+        } = await supabaseAdmin.auth.getUser(token);
         if (userError || !user) {
             return new Response(JSON.stringify({ error: "Unauthorized." }), {
                 status: 401,

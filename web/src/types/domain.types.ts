@@ -94,6 +94,7 @@ export interface Invoice {
     invoice_type: InvoiceType;
     status: InvoiceStatus;
     paid_at: string | null;
+    description: string | null;
     created_at: string;
     updated_at: string;
     // joins

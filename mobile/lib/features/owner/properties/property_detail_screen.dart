@@ -13,7 +13,8 @@ class PropertyDetailScreen extends ConsumerStatefulWidget {
   final String? propertyId;
 
   @override
-  ConsumerState<PropertyDetailScreen> createState() => _PropertyDetailScreenState();
+  ConsumerState<PropertyDetailScreen> createState() =>
+      _PropertyDetailScreenState();
 }
 
 class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
@@ -53,15 +54,19 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
           .select()
           .eq('id', widget.propertyId!)
           .single();
-      final p = Property.fromJson(data as Map<String, dynamic>);
+      final p = Property.fromJson(data);
       _streetCtrl.text = p.addressStreet;
       _numberCtrl.text = p.addressNumber;
       _neighborhoodCtrl.text = p.addressNeighborhood;
       _cityCtrl.text = p.addressCity;
       _stateCtrl.text = p.addressState;
       _zipCtrl.text = p.addressZip;
-      _iptuCtrl.text = centsToDisplay(p.iptuMonthlyCents).replaceAll(RegExp(r'[R$\s]'), '');
-      _condoCtrl.text = centsToDisplay(p.condoMonthlyCents).replaceAll(RegExp(r'[R$\s]'), '');
+      _iptuCtrl.text = centsToDisplay(
+        p.iptuMonthlyCents,
+      ).replaceAll(RegExp(r'[R$\s]'), '');
+      _condoCtrl.text = centsToDisplay(
+        p.condoMonthlyCents,
+      ).replaceAll(RegExp(r'[R$\s]'), '');
       _descCtrl.text = p.description ?? '';
       setState(() {
         _propertyType = p.propertyType;
@@ -79,7 +84,10 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
     final payload = {
       'address_street': _streetCtrl.text.trim(),
@@ -94,7 +102,9 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
       'parking_spaces': _parkingSpaces,
       'iptu_monthly_cents': displayToCents(_iptuCtrl.text),
       'condo_monthly_cents': displayToCents(_condoCtrl.text),
-      'description': _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      'description': _descCtrl.text.trim().isEmpty
+          ? null
+          : _descCtrl.text.trim(),
     };
 
     try {
@@ -129,7 +139,10 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
         title: const Text('Excluir imóvel?'),
         content: const Text('Esta ação não pode ser desfeita.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Excluir', style: TextStyle(color: Colors.red)),
@@ -145,19 +158,30 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
       ref.invalidate(propertiesProvider);
       context.go('/owner/properties');
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
   @override
   void dispose() {
-    _streetCtrl.dispose(); _numberCtrl.dispose(); _neighborhoodCtrl.dispose();
-    _cityCtrl.dispose(); _stateCtrl.dispose(); _zipCtrl.dispose();
-    _iptuCtrl.dispose(); _condoCtrl.dispose(); _descCtrl.dispose();
+    _streetCtrl.dispose();
+    _numberCtrl.dispose();
+    _neighborhoodCtrl.dispose();
+    _cityCtrl.dispose();
+    _stateCtrl.dispose();
+    _zipCtrl.dispose();
+    _iptuCtrl.dispose();
+    _condoCtrl.dispose();
+    _descCtrl.dispose();
     super.dispose();
   }
 
-  Widget _field(String label, TextEditingController ctrl, {
+  Widget _field(
+    String label,
+    TextEditingController ctrl, {
     TextInputType? keyboard,
     bool required = true,
     int maxLines = 1,
@@ -166,8 +190,13 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
       controller: ctrl,
       keyboardType: keyboard,
       maxLines: maxLines,
-      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
-      validator: required ? (v) => (v == null || v.isEmpty) ? 'Campo obrigatório.' : null : null,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      validator: required
+          ? (v) => (v == null || v.isEmpty) ? 'Campo obrigatório.' : null
+          : null,
     );
   }
 
@@ -209,55 +238,109 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(color: Colors.red.shade700),
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],
 
               _field('Logradouro', _streetCtrl),
               const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: _field('Número', _numberCtrl, keyboard: TextInputType.number)),
-                const SizedBox(width: 12),
-                Expanded(child: _field('Bairro', _neighborhoodCtrl)),
-              ]),
+              Row(
+                children: [
+                  Expanded(
+                    child: _field(
+                      'Número',
+                      _numberCtrl,
+                      keyboard: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: _field('Bairro', _neighborhoodCtrl)),
+                ],
+              ),
               const SizedBox(height: 12),
-              Row(children: [
-                Expanded(flex: 2, child: _field('Cidade', _cityCtrl)),
-                const SizedBox(width: 12),
-                Expanded(child: _field('UF', _stateCtrl)),
-              ]),
+              Row(
+                children: [
+                  Expanded(flex: 2, child: _field('Cidade', _cityCtrl)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _field('UF', _stateCtrl)),
+                ],
+              ),
               const SizedBox(height: 12),
-              _field('CEP (somente números)', _zipCtrl, keyboard: TextInputType.number),
+              _field(
+                'CEP (somente números)',
+                _zipCtrl,
+                keyboard: TextInputType.number,
+              ),
               const SizedBox(height: 16),
 
               // Type dropdown
               DropdownButtonFormField<PropertyType>(
                 value: _propertyType,
-                decoration: const InputDecoration(labelText: 'Tipo', border: OutlineInputBorder()),
-                items: PropertyType.values.map((t) => DropdownMenuItem(
-                  value: t,
-                  child: Text(propertyTypeLabels[t] ?? t.name),
-                )).toList(),
+                decoration: const InputDecoration(
+                  labelText: 'Tipo',
+                  border: OutlineInputBorder(),
+                ),
+                items: PropertyType.values
+                    .map(
+                      (t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(propertyTypeLabels[t] ?? t.name),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (v) => setState(() => _propertyType = v!),
               ),
               const SizedBox(height: 12),
 
               // Counter row
-              Row(children: [
-                _Counter('Quartos', _bedrooms, (v) => setState(() => _bedrooms = v)),
-                const SizedBox(width: 12),
-                _Counter('Banheiros', _bathrooms, (v) => setState(() => _bathrooms = v)),
-                const SizedBox(width: 12),
-                _Counter('Vagas', _parkingSpaces, (v) => setState(() => _parkingSpaces = v)),
-              ]),
+              Row(
+                children: [
+                  _Counter(
+                    'Quartos',
+                    _bedrooms,
+                    (v) => setState(() => _bedrooms = v),
+                  ),
+                  const SizedBox(width: 12),
+                  _Counter(
+                    'Banheiros',
+                    _bathrooms,
+                    (v) => setState(() => _bathrooms = v),
+                  ),
+                  const SizedBox(width: 12),
+                  _Counter(
+                    'Vagas',
+                    _parkingSpaces,
+                    (v) => setState(() => _parkingSpaces = v),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
 
-              Row(children: [
-                Expanded(child: _field('IPTU mensal (R$)', _iptuCtrl, keyboard: TextInputType.number, required: false)),
-                const SizedBox(width: 12),
-                Expanded(child: _field('Condomínio (R$)', _condoCtrl, keyboard: TextInputType.number, required: false)),
-              ]),
+              Row(
+                children: [
+                  Expanded(
+                    child: _field(
+                      'IPTU mensal (R\$)',
+                      _iptuCtrl,
+                      keyboard: TextInputType.number,
+                      required: false,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _field(
+                      'Condomínio (R\$)',
+                      _condoCtrl,
+                      keyboard: TextInputType.number,
+                      required: false,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               _field('Descrição', _descCtrl, required: false, maxLines: 3),
               const SizedBox(height: 24),
@@ -265,7 +348,14 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
               FilledButton(
                 onPressed: _loading ? null : _save,
                 child: _loading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : Text(_isNew ? 'Salvar imóvel' : 'Atualizar'),
               ),
             ],
@@ -300,7 +390,10 @@ class _Counter extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text('$value', style: const TextStyle(fontWeight: FontWeight.w600)),
+                child: Text(
+                  '$value',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, size: 20),

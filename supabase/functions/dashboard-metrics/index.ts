@@ -24,16 +24,21 @@ Deno.serve(async (req: Request) => {
             );
         }
 
+        const supabaseAdmin = createClient(
+            Deno.env.get("SUPABASE_URL") ?? "",
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        );
         const supabaseClient = createClient(
             Deno.env.get("SUPABASE_URL") ?? "",
-            Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
             { global: { headers: { Authorization: authHeader } } },
         );
 
+        const token = authHeader.replace("Bearer ", "");
         const {
             data: { user },
             error: userError,
-        } = await supabaseClient.auth.getUser();
+        } = await supabaseAdmin.auth.getUser(token);
         if (userError || !user) {
             return new Response(JSON.stringify({ error: "Unauthorized." }), {
                 status: 401,
@@ -87,7 +92,38 @@ Deno.serve(async (req: Request) => {
             }>
         >();
 
+        // Fetch all non-cancelled invoices for this month across ALL owner's contracts
+        // (any type: rent, fine, deposit, etc.) to correctly compute receivable/received
+        const { data: allOwnerContracts } = await supabaseClient
+            .from("contracts")
+            .select("id")
+            .eq("owner_id", user.id);
+        const allOwnerContractIds = (allOwnerContracts ?? []).map(
+            (c: { id: string }) => c.id,
+        );
+
+        const { data: allMonthInvoices } =
+            allOwnerContractIds.length > 0
+                ? await supabaseClient
+                      .from("invoices")
+                      .select("contract_id, invoice_type, amount_cents, status")
+                      .eq("competencia_month", currentMonthStart)
+                      .neq("status", "cancelled")
+                      .in("contract_id", allOwnerContractIds)
+                : { data: [] };
+
+        for (const inv of allMonthInvoices ?? []) {
+            if (inv.status === "paid") {
+                totalReceivedCents += inv.amount_cents;
+            } else if (inv.status === "pending" || inv.status === "overdue") {
+                totalReceivableCents += inv.amount_cents;
+            }
+        }
+        // Receivable = pending/overdue + already received
+        totalReceivableCents += totalReceivedCents;
+
         if (contractIds.length > 0) {
+            // Rent invoices for active contracts (for the properties-by-due-day widget)
             const { data: invoices } = await supabaseClient
                 .from("invoices")
                 .select("contract_id, invoice_type, amount_cents, status")
@@ -141,12 +177,6 @@ Deno.serve(async (req: Request) => {
                 const address =
                     propertyMap.get(contract.property_id) ??
                     "Endereço não disponível";
-
-                if (invoice) {
-                    totalReceivableCents += invoice.amount_cents;
-                    if (invoice.status === "paid")
-                        totalReceivedCents += invoice.amount_cents;
-                }
 
                 const dayGroup =
                     propertiesByDueDayMap.get(contract.due_day) ?? [];

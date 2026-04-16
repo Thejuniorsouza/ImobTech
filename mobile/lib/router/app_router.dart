@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../core/supabase_client.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -15,6 +13,7 @@ import '../features/owner/inspections/inspection_screen.dart';
 import '../features/owner/documents/documents_screen.dart';
 import '../features/owner/templates/templates_screen.dart';
 import '../features/owner/ads/ad_generator_screen.dart';
+import '../features/owner/invoices/invoices_screen.dart';
 import '../features/tenant/dashboard/tenant_dashboard_screen.dart';
 import '../features/tenant/contracts/tenant_contract_detail_screen.dart';
 
@@ -23,7 +22,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     redirect: (context, state) {
       final session = supabase.auth.currentSession;
-      final isAuthRoute = state.matchedLocation.startsWith('/login') ||
+      final isAuthRoute =
+          state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/register');
 
       if (session == null && !isAuthRoute) return '/login';
@@ -79,6 +79,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (ctx, state) =>
                 AdGeneratorScreen(propertyId: state.pathParameters['id']!),
           ),
+          GoRoute(
+            path: '/owner/invoices',
+            builder: (ctx, _) => const InvoicesScreen(),
+          ),
         ],
       ),
 
@@ -115,29 +119,63 @@ class _OwnerShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: child,
-      bottomNavigationBar: Builder(
-        builder: (ctx) {
-          final location = GoRouterState.of(ctx).matchedLocation;
-          int idx = 0;
-          if (location.startsWith('/owner/properties')) idx = 1;
-          if (location.startsWith('/owner/contracts')) idx = 2;
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Builder(
+            builder: (ctx) {
+              final location = GoRouterState.of(ctx).matchedLocation;
+              int idx = 0;
+              if (location.startsWith('/owner/properties')) idx = 1;
+              if (location.startsWith('/owner/contracts')) idx = 2;
+              if (location.startsWith('/owner/invoices')) idx = 3;
 
-          return BottomNavigationBar(
-            currentIndex: idx,
-            onTap: (i) {
-              switch (i) {
-                case 0: ctx.go('/owner/dashboard');
-                case 1: ctx.go('/owner/properties');
-                case 2: ctx.go('/owner/contracts');
-              }
+              return BottomNavigationBar(
+                currentIndex: idx,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                onTap: (i) {
+                  switch (i) {
+                    case 0:
+                      ctx.go('/owner/dashboard');
+                    case 1:
+                      ctx.go('/owner/properties');
+                    case 2:
+                      ctx.go('/owner/contracts');
+                    case 3:
+                      ctx.go('/owner/invoices');
+                  }
+                },
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.dashboard_outlined),
+                    activeIcon: Icon(Icons.dashboard),
+                    label: 'Painel',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home_outlined),
+                    activeIcon: Icon(Icons.home),
+                    label: 'Imóveis',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.description_outlined),
+                    activeIcon: Icon(Icons.description),
+                    label: 'Contratos',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.receipt_long_outlined),
+                    activeIcon: Icon(Icons.receipt_long),
+                    label: 'Faturas',
+                  ),
+                ],
+              );
             },
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Painel'),
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Imóveis'),
-              BottomNavigationBarItem(icon: Icon(Icons.description), label: 'Contratos'),
-            ],
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -150,20 +188,49 @@ class _TenantShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ImobTech'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () async {
-              await supabase.auth.signOut();
-              if (context.mounted) context.go('/login');
+      body: child,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Builder(
+            builder: (ctx) {
+              final location = GoRouterState.of(ctx).matchedLocation;
+              int idx = 0;
+              if (location.startsWith('/tenant/contracts')) idx = 1;
+
+              return BottomNavigationBar(
+                currentIndex: idx,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                onTap: (i) {
+                  switch (i) {
+                    case 0:
+                      ctx.go('/tenant/dashboard');
+                    case 1:
+                      ctx.go('/tenant/contracts/list');
+                  }
+                },
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.dashboard_outlined),
+                    activeIcon: Icon(Icons.dashboard),
+                    label: 'Painel',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.description_outlined),
+                    activeIcon: Icon(Icons.description),
+                    label: 'Contratos',
+                  ),
+                ],
+              );
             },
           ),
-        ],
+        ),
       ),
-      body: child,
     );
   }
 }

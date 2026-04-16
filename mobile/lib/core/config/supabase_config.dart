@@ -4,11 +4,11 @@
 abstract final class SupabaseConfig {
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://YOUR_PROJECT_REF.supabase.co',
+    defaultValue: 'https://cugpkcgbivfukeokiwtn.supabase.co',
   );
 
   static const String anonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'YOUR_ANON_KEY_HERE',
+    defaultValue: 'sb_publishable_9iVlTr1DLufoGHo4i6dF0g_jzEJFxfc',
   );
 }
