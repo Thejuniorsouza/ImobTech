@@ -108,18 +108,6 @@ export function Sidebar({
 
             {/* Bottom card */}
             <div className="px-3 mt-4">
-                <div className="rounded-2xl bg-primary-800 text-white p-4 mb-3">
-                    <p className="text-xs font-medium mb-1 opacity-80">
-                        Acesso Mobile
-                    </p>
-                    <p className="text-[11px] opacity-60 leading-tight mb-3">
-                        Gerencie seus imóveis de qualquer lugar
-                    </p>
-                    <button className="w-full text-[11px] font-semibold bg-primary-500 hover:bg-primary-400 transition-colors rounded-lg py-1.5">
-                        Em breve
-                    </button>
-                </div>
-
                 {/* Logout */}
                 <button
                     onClick={handleLogout}
