@@ -106,7 +106,16 @@ export const contractService = {
             .neq("status", "cancelled")
             .order("due_date", { ascending: true });
         if (error) throw error;
-        return (data ?? []) as Invoice[];
+        type InvoiceWithJoinedContract = Omit<Invoice, "contract"> & {
+            contract?: Contract | Contract[];
+        };
+        const invoices = (data ?? []) as unknown as InvoiceWithJoinedContract[];
+        return invoices.map((invoice) => ({
+            ...invoice,
+            contract: Array.isArray(invoice.contract)
+                ? invoice.contract[0]
+                : invoice.contract,
+        })) as Invoice[];
     },
 
     async createStandaloneInvoice(data: {
@@ -333,8 +342,8 @@ export const contractService = {
 
     async terminateContract(contractId: string): Promise<{
         fine_cents: number;
-        remaining_days: number;
-        total_days: number;
+        remaining_months: number;
+        total_months: number;
     }> {
         const { data, error } = await supabase.functions.invoke(
             "terminate-contract",
