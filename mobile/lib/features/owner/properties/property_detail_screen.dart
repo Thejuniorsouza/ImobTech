@@ -279,7 +279,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
 
               // Type dropdown
               DropdownButtonFormField<PropertyType>(
-                value: _propertyType,
+                initialValue: _propertyType,
                 decoration: const InputDecoration(
                   labelText: 'Tipo',
                   border: OutlineInputBorder(),

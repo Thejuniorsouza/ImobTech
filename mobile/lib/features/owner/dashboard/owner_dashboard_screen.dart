@@ -107,7 +107,7 @@ final dashboardMetricsProvider = FutureProvider.autoDispose<_DashboardMetrics>((
     }
 
     // Period totals (3m, 6m, 12m, all)
-    int _periodTotal(int? months) {
+    int periodTotal(int? months) {
       final cutoff = months == null
           ? null
           : DateTime(
@@ -127,10 +127,10 @@ final dashboardMetricsProvider = FutureProvider.autoDispose<_DashboardMetrics>((
     }
 
     receivedByPeriod = <int?, int>{
-      3: _periodTotal(3),
-      6: _periodTotal(6),
-      12: _periodTotal(12),
-      null: _periodTotal(null),
+      3: periodTotal(3),
+      6: periodTotal(6),
+      12: periodTotal(12),
+      null: periodTotal(null),
     };
 
     final propIds = contracts

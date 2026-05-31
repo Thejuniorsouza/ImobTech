@@ -29,7 +29,7 @@ class DocumentsScreen extends ConsumerStatefulWidget {
 }
 
 class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
-  bool _uploading = false;
+  final bool _uploading = false;
   static const _docTypes = [
     'Identidade',
     'CPF',
@@ -62,7 +62,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: _selectedType,
+                    initialValue: _selectedType,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de documento',
                       border: OutlineInputBorder(),

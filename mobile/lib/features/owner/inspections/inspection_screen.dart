@@ -264,7 +264,7 @@ class _InspectionCard extends ConsumerWidget {
       final path = 'inspections/${inspection.id}/${xFile.name}';
       await supabase.storage
           .from('inspection-photos')
-          .uploadBinary(path, bytes, fileOptions: FileOptions(upsert: true));
+          .uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
 
       await supabase.from('inspection_photos').insert({
         'inspection_id': inspection.id,

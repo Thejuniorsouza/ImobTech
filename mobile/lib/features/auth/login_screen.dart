@@ -181,8 +181,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               prefixIcon: Icon(Icons.email_outlined, size: 20),
                             ),
                             validator: (v) {
-                              if (v == null || v.isEmpty)
+                              if (v == null || v.isEmpty) {
                                 return 'Informe o e-mail.';
+                              }
                               if (!v.contains('@')) return 'E-mail inválido.';
                               return null;
                             },
@@ -199,8 +200,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               prefixIcon: Icon(Icons.lock_outline, size: 20),
                             ),
                             validator: (v) {
-                              if (v == null || v.length < 8)
+                              if (v == null || v.length < 8) {
                                 return 'Mínimo 8 caracteres.';
+                              }
                               return null;
                             },
                           ),

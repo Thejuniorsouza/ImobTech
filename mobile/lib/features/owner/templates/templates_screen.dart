@@ -166,8 +166,9 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty || bodyCtrl.text.trim().isEmpty)
+              if (titleCtrl.text.trim().isEmpty || bodyCtrl.text.trim().isEmpty) {
                 return;
+              }
               try {
                 await supabase.from('contract_templates').insert({
                   'title': titleCtrl.text.trim(),
